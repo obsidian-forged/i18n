@@ -48,7 +48,9 @@ function loadSource(relativePath) {
         if (id === '../../../utils') return {
             AstTranslator: class {
                 loadCode(code) { new Function(code); return code; }
-                translate(code) { return code; }
+                translate(code, entries) {
+                    return entries.reduce((result, entry) => result.split(entry.source).join(entry.target), code);
+                }
             },
             RegexTranslator: class {
                 translate(code, entries) {
@@ -199,6 +201,57 @@ test('手动应用备份失败时不写源码、不改状态且不启停插件',
         kind === 'result' && args[0] === false && args[1].includes('Manager.Common.Errors.BackupFailed')
     )));
 });
+
+for (const [name, dict] of [
+    ['空字典', {}],
+    ['文件存在但两类规则均为空', { 'main.js': { ast: [], regex: [] } }],
+    ['仅有未翻译或空译文条目', {
+        'main.js': {
+            ast: [{ type: 'StringLiteral', name: 'label', source: 'English', target: 'English' }],
+            regex: [{ source: 'English', target: '' }]
+        }
+    }]
+]) {
+    test(`手动应用重新读取后拒绝${name}，不创建备份、不写入、不改状态且不重载`, async (t) => {
+        const f = fixture(t, { loadSucceeds: true });
+        // 模拟页面渲染后，云端更新或编辑使当前译文变为空内容。
+        f.writeTranslation(undefined, dict);
+        let createBackup;
+        mockBackupSession(t, f.i18n.backupManager, (session) => {
+            createBackup = t.mock.fn((...args) => session.createBackup(...args));
+            return { createBackup };
+        });
+
+        await f.apply();
+
+        assert.equal(createBackup.mock.callCount(), 0);
+        assert.deepEqual(f.calls.writes, []);
+        assert.equal(f.readMain(), original);
+        assert.equal(fs.readFileSync(f.statePath, 'utf8'), f.initialState);
+        assert.deepEqual(f.calls.disable, []);
+        assert.deepEqual(f.calls.enable, []);
+        assert.deepEqual(f.calls.reload, []);
+    });
+}
+
+for (const kind of ['ast', 'regex']) {
+    test(`手动应用允许仅含有效 ${kind} 译文的文件`, async (t) => {
+        const f = fixture(t, { loadSucceeds: true });
+        f.writeTranslation(undefined, {
+            'main.js': {
+                ast: [], regex: [],
+                [kind]: [{ type: 'StringLiteral', name: 'label', source: 'English', target: '中文' }]
+            }
+        });
+
+        await f.apply();
+
+        assert.equal(f.readMain(), original.replace('English', '中文'));
+        assert.equal(f.i18n.stateManager.getPluginState(pluginId).isApplied, true);
+        assert.deepEqual(f.calls.disable, [pluginId]);
+        assert.deepEqual(f.calls.enable, [pluginId]);
+    });
+}
 
 test('手动应用加载失败且恢复失败时保留状态、不再次启用插件', async (t) => {
     const f = fixture(t);

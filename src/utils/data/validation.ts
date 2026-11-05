@@ -35,6 +35,18 @@ export const isValidPluginTranslationV1Format = (pluginJson: PluginTranslationV1
     return hasMetadata && validMetadata && hasDict && hasSchemaVersion;
 };
 
+/** 与翻译器保持一致，只将原文和译文均非空且不同的条目视为可应用内容。 */
+export const hasPluginTranslationContent = (pluginJson: PluginTranslationV1 | null | undefined): boolean => {
+    if (!pluginJson?.dict) return false;
+    const hasTranslatedEntries = (entries: unknown): boolean => Array.isArray(entries) && entries.some(item => (
+        typeof item?.source === 'string' && item.source.length > 0 &&
+        typeof item.target === 'string' && item.target.length > 0 && item.target !== item.source
+    ));
+    return Object.values(pluginJson.dict).some(fileData => (
+        hasTranslatedEntries(fileData?.ast) || hasTranslatedEntries(fileData?.regex)
+    ));
+};
+
 
 
 /**

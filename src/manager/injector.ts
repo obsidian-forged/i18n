@@ -5,6 +5,7 @@ import I18N from '../main';
 import { loadTranslationFile } from '../manager/io-manager';
 import type { BackupSession } from './backup-manager';
 import { t } from '../locales';
+import { hasPluginTranslationContent } from '../utils/data/validation';
 
 export class InjectorManager {
     private i18n: I18N;
@@ -99,7 +100,7 @@ export class InjectorManager {
             const translationPath = this.i18n.sourceManager.getActiveSourcePath(plugin.id);
             if (!translationPath) return false;
             const translationJson = loadTranslationFile(translationPath);
-            if (!translationJson || !translationJson.dict) return false;
+            if (!hasPluginTranslationContent(translationJson)) return false;
 
             // 3. 基础备份 (如果尚未备份)
             // 注意：这里的备份是指对目标插件源码的备份，防止搞坏

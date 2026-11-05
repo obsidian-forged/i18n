@@ -204,6 +204,68 @@ test('备份返回失败时注入器不写目标、不翻译也不更新状态',
     assert.equal(f.i18n.stateManager.getPluginState(pluginId), undefined);
 });
 
+for (const [name, dict] of [
+    ['空字典', {}],
+    ['文件存在但两类规则均为空', { 'main.js': { ast: [], regex: [] } }],
+    ['仅有未翻译或空译文条目', {
+        'main.js': {
+            ast: [{ type: 'StringLiteral', name: 'label', source: 'English', target: 'English' }],
+            regex: [{ source: 'English', target: '' }]
+        }
+    }]
+]) {
+    test(`注入器拒绝${name}，不创建备份、不写入、不改状态且不重载`, async (t) => {
+        const f = fixture(t);
+        f.app.plugins.enabledPlugins.add(pluginId);
+        f.setApplied();
+        const initialState = f.i18n.stateManager.getPluginState(pluginId);
+        f.writeTranslation(undefined, pluginId, dict);
+        let createBackup;
+        mockBackupSession(t, f.backup, (session) => {
+            createBackup = t.mock.fn((...args) => session.createBackup(...args));
+            return { createBackup };
+        });
+        const write = t.mock.method(fs, 'writeFileSync');
+        const state = t.mock.method(f.i18n.stateManager, 'setPluginState');
+        const disable = t.mock.method(f.app.plugins, 'disablePlugin');
+        const enable = t.mock.method(f.app.plugins, 'enablePlugin');
+
+        assert.equal(await f.injector.applyToPlugin(pluginId), false);
+
+        assert.equal(createBackup.mock.callCount(), 0);
+        assert.equal(write.mock.callCount(), 0);
+        assert.equal(state.mock.callCount(), 0);
+        assert.deepEqual(f.i18n.stateManager.getPluginState(pluginId), initialState);
+        assert.equal(disable.mock.callCount(), 0);
+        assert.equal(enable.mock.callCount(), 0);
+        assert.deepEqual(f.translationInputs, []);
+        assert.equal(f.readMain(), originalV1);
+    });
+}
+
+for (const kind of ['ast', 'regex']) {
+    test(`注入器允许仅含有效 ${kind} 译文的文件`, async (t) => {
+        const f = fixture(t);
+        f.writeTranslation(undefined, pluginId, {
+            'main.js': {
+                ast: [], regex: [],
+                [kind]: [{ type: 'StringLiteral', name: 'label', source: 'English', target: '中文' }]
+            }
+        });
+        if (kind === 'ast') {
+            t.mock.method(f.i18n.coreManager, 'getAstTranslator', () => ({
+                loadCode: (code) => code,
+                translate: (code, entries) => entries.reduce((result, entry) => result.split(entry.source).join(entry.target), code)
+            }));
+        }
+
+        assert.equal(await f.injector.applyToPlugin(pluginId), true);
+
+        assert.equal(f.readMain(), originalV1.replace('English', '中文'));
+        assert.equal(f.i18n.stateManager.getPluginState(pluginId).isApplied, true);
+    });
+}
+
 test('自动应用准备第二个文件失败时不写入任何目标文件', async (t) => {
     const f = fixture(t);
     const mainPath = path.join(f.pluginDir, 'main.js');

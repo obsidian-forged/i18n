@@ -8,6 +8,7 @@ import I18N from 'src/main';
 import { PluginTranslationV1 } from 'src/types';
 import { i18nOpen, AstTranslator, RegexTranslator, isValidPluginTranslationV1Format } from '../../../utils';
 import { loadTranslationFile } from '../../../manager/io-manager';
+import { hasPluginTranslationContent } from '../../../utils/data/validation';
 import { useGlobalStoreInstance } from '~/utils';
 import { EDITOR_VIEW_TYPE } from '../../../views';
 import {
@@ -180,6 +181,10 @@ export const PluginItem: React.FC<PluginItemProps> = React.memo(({ plugin, i18n,
         try {
             await i18n.backupManager.withBackupSession(plugin.id, async backup => {
                 const translationJson: PluginTranslationV1 = loadTranslationFile(langDoc);
+                if (!hasPluginTranslationContent(translationJson)) {
+                    setShowEmptyDialog(true);
+                    return;
+                }
                 if (translationJson.dict) {
                     const files = Object.keys(translationJson.dict);
                     const backedUp = await backup.createBackup(pluginDir, files);
