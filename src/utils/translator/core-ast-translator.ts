@@ -330,7 +330,9 @@ export class AstTranslator {
                 const node = path.node;
                 const name = this.getCallName(node.callee);
                 if (name && this.config.functions.includes(name)) {
-                    node.arguments.forEach(arg => {
+                    node.arguments.forEach((arg, index) => {
+                        // createEl 的首参是 HTML 标签名，只有后续内容选项才属于文案。
+                        if (name === 'createEl' && index === 0) return;
                         if (this.isStrNode(arg)) {
                             callback('CallExpression', name, arg);
                         } else if (t.isObjectExpression(arg)) {
