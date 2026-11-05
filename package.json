@@ -1,6 +1,6 @@
 {
     "name": "obsidian-i18n",
-    "version": "2.0.26",
+    "version": "2.0.27",
     "description": "Obsidian国际化翻译插件，提供多语言支持和翻译管理功能",
     "main": "main.js",
     "scripts": {
