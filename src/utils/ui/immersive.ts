@@ -40,6 +40,9 @@ interface WindowSession {
     sdkGlobals: Map<string, unknown>;
     ball: HTMLElement | null;
     panel: HTMLElement | null;
+    ballPosition: number | null;
+    onBallPositionChange?: (position: number) => void | Promise<void>;
+    stopDragging?: () => void;
     script: HTMLScriptElement | null;
     cleanups: Array<() => void>;
     cancelled: boolean;
@@ -70,7 +73,11 @@ export class ImmersiveTranslate {
         return ImmersiveTranslate.instance;
     }
 
-    public activate(settings: I18nSettings, targetWindow: Window = window): Promise<void> {
+    public activate(
+        settings: I18nSettings,
+        targetWindow: Window = window,
+        onBallPositionChange?: (position: number) => void | Promise<void>
+    ): Promise<void> {
         const existing = this.sessions.get(targetWindow);
         if (existing && !existing.cancelled) return existing.ready;
 
@@ -100,6 +107,9 @@ export class ImmersiveTranslate {
             previousOnError: null,
             bridge: undefined, previousGlobals: new Map(), sdkGlobals: new Map(),
             ball: null, panel: null, script: null,
+            ballPosition: typeof settings.imtBallPosition === 'number' && Number.isFinite(settings.imtBallPosition)
+                ? Math.max(0, Math.min(1, settings.imtBallPosition)) : null,
+            onBallPositionChange,
             cleanups: [], cancelled: false, closing: false, executed: false,
             ready: Promise.resolve(), loaded, finishLoading
         };
@@ -164,39 +174,65 @@ export class ImmersiveTranslate {
         };
         ball.addEventListener('click', onClick);
         session.cleanups.push(() => ball.removeEventListener('click', onClick));
-        this.makeDraggable(session, ball, panel);
         doc.body.appendChild(ball);
+        this.makeDraggable(session, ball, panel);
     }
 
     private makeDraggable(session: WindowSession, element: HTMLElement, panel: HTMLElement): void {
         const win = session.window;
         const doc = win.document;
         let dragging = false;
+        let moved = false;
         let startY = 0;
         let initialTop = 0;
+        let position = session.ballPosition;
+        const availableHeight = () => Math.max(0, win.innerHeight - element.offsetHeight);
+        const placeBall = () => {
+            if (position === null) return;
+            element.style.top = `${position * availableHeight()}px`;
+            element.style.bottom = 'auto';
+            element.style.right = '0px';
+        };
+        placeBall();
         const onDown = (event: MouseEvent) => {
             if (event.button !== 0 || (event.target instanceof win.Node && panel.contains(event.target))) return;
             event.preventDefault();
             dragging = true;
+            moved = false;
             startY = event.clientY;
             initialTop = element.getBoundingClientRect().top;
         };
         const onMove = (event: MouseEvent) => {
-            if (!dragging) return;
+            if (!dragging || (!moved && event.clientY === startY)) return;
             event.preventDefault();
-            element.style.top = `${Math.max(0, Math.min(initialTop + event.clientY - startY, win.innerHeight - element.offsetHeight))}px`;
-            element.style.bottom = 'auto';
-            element.style.right = '0px';
+            moved = true;
+            const height = availableHeight();
+            const top = Math.max(0, Math.min(initialTop + event.clientY - startY, height));
+            position = height > 0 ? top / height : 0;
+            placeBall();
         };
-        const onUp = () => { dragging = false; };
+        const onUp = async () => {
+            if (!dragging) return;
+            dragging = false;
+            if (!moved || position === null) return;
+            try {
+                await session.onBallPositionChange?.(position);
+            } catch (error) {
+                console.error('沉浸式翻译悬浮球位置保存失败', error);
+            }
+        };
         element.addEventListener('mousedown', onDown);
         doc.addEventListener('mousemove', onMove);
         doc.addEventListener('mouseup', onUp);
-        session.cleanups.push(() => {
+        win.addEventListener('resize', placeBall);
+        session.stopDragging = () => {
+            dragging = false;
             element.removeEventListener('mousedown', onDown);
             doc.removeEventListener('mousemove', onMove);
             doc.removeEventListener('mouseup', onUp);
-        });
+            win.removeEventListener('resize', placeBall);
+        };
+        session.cleanups.push(session.stopDragging);
     }
 
     private createFetchBridge(win: ImmersiveWindow) {
@@ -315,6 +351,7 @@ export class ImmersiveTranslate {
     private dispose(session: WindowSession): Promise<void> {
         if (session.disposal) return session.disposal;
         session.cancelled = true;
+        session.stopDragging?.();
         if (session.ball) session.ball.style.display = 'none';
         if (!session.executed || session.closing || session.window.closed) session.cancelLoading?.();
         // 未执行的会话也要串入旧清理链，避免快速开关时越过仍在恢复的 SDK。

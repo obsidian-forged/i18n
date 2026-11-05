@@ -180,6 +180,7 @@ export interface I18nSettings {
     // 沉浸式翻译配置 (IMT)
     // ==============================
     modeImt: boolean;         // 是否启用沉浸式翻译
+    imtBallPosition: number | null; // 悬浮球在可移动高度中的相对位置，null 使用默认位置
     imtPagerule: pageRule;    // 沉浸式翻译页面的匹配规则
 
     // ==============================
@@ -526,6 +527,7 @@ export const DEFAULT_SETTINGS: I18nSettings = {
     // 沉浸式翻译配置 (IMT)
     // ==============================
     modeImt: false,           // 默认关闭沉浸式
+    imtBallPosition: null,
     imtPagerule: {
         selectors: [
             ".mod-settings",

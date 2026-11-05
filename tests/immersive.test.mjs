@@ -102,7 +102,10 @@ function makeWindow(name, { autoMount = true, scriptError = false } = {}) {
             return child;
         }
         remove() { this.parentNode?.removeChild(this); }
-        getBoundingClientRect() { return { top: Number.parseFloat(this.style.top) || 30, height: this.offsetHeight }; }
+        getBoundingClientRect() {
+            const top = Number.parseFloat(this.style.top);
+            return { top: Number.isFinite(top) ? top : 30, height: this.offsetHeight };
+        }
     };
     const all = (element) => [element, ...element.children.flatMap(all)];
     const matches = (element, selector) => {
@@ -397,6 +400,144 @@ test('子窗口点击与拖拽使用其自身Node、文档和视口', async (t) 
     assert.equal(child.document.listenerCount(), 0);
     assert.equal(ball.listenerCount(), 0);
 });
+
+test('保存的位置按各窗口可移动高度恢复，缩放窗口不写配置且保持比例', async (t) => {
+    const f = fixture(t);
+    const child = f.child();
+    child.innerHeight = 200;
+    const saved = [];
+    const config = { ...settings, imtBallPosition: 0.5 };
+    await Promise.all([
+        f.manager.activate(config, f.main, (position) => saved.push(position)),
+        f.manager.activate(config, child, (position) => saved.push(position))
+    ]);
+    const mainBall = f.main.document.getElementById('immersive-translate-ball');
+    const childBall = child.document.getElementById('immersive-translate-ball');
+    assert.equal(mainBall.style.top, '384px');
+    assert.equal(childBall.style.top, '84px');
+
+    child.innerHeight = 432;
+    child.fire('resize');
+    assert.equal(childBall.style.top, '200px');
+    assert.equal(mainBall.style.top, '384px');
+    assert.deepEqual(saved, []);
+
+    await f.manager.deactivate(child);
+    assert.equal(child.listenerCount('resize'), 0);
+    child.innerHeight = 100;
+    child.fire('resize');
+    assert.equal(childBall.style.top, '200px');
+});
+
+test('只在拖动结束保存一次，新窗口和重新启用使用最后位置', async (t) => {
+    const f = fixture(t);
+    const child = f.child();
+    child.innerHeight = 232;
+    const config = { ...settings, imtBallPosition: null };
+    const saved = [];
+    const save = (position) => { saved.push(position); config.imtBallPosition = position; };
+    await f.manager.activate(config, child, save);
+    const ball = child.document.getElementById('immersive-translate-ball');
+    const widget = child.runtimes[0].widget;
+    assert.equal(ball.style.top, undefined, '未保存位置时保留 CSS 默认值');
+    ball.fire('mousedown', { button: 0, clientY: 10 });
+    child.document.fire('mouseup');
+    ball.fire('mousedown', { button: 0, clientY: 10, target: widget });
+    child.document.fire('mousemove', { clientY: 80 });
+    child.document.fire('mouseup');
+    assert.deepEqual(saved, [], '普通点击和面板交互不保存位置');
+
+    ball.fire('mousedown', { button: 0, clientY: 10 });
+    child.document.fire('mousemove', { clientY: 40 });
+    child.document.fire('mousemove', { clientY: 80 });
+    assert.deepEqual(saved, [], '拖动中不写配置');
+    child.document.fire('mouseup');
+    child.document.fire('mouseup');
+    await settle();
+    assert.deepEqual(saved, [0.5]);
+    assert.equal(ball.style.top, '100px');
+    child.innerHeight = 432;
+    child.fire('resize');
+    assert.equal(ball.style.top, '200px', '缩放使用拖动后的比例');
+
+    await f.manager.deactivate(child);
+    await f.manager.activate(config, child, save);
+    assert.equal(child.document.getElementById('immersive-translate-ball').style.top, '200px');
+    const reopened = f.child();
+    reopened.innerHeight = 632;
+    await f.manager.activate(config, reopened, save);
+    assert.equal(reopened.document.getElementById('immersive-translate-ball').style.top, '300px');
+    assert.deepEqual(saved, [0.5]);
+});
+
+test('越界位置夹取，非法旧值保留默认位置，小窗口缩放后仍恢复比例', async (t) => {
+    const f = fixture(t);
+    for (const [position, expected] of [[-1, '0px'], [2, '768px'], [NaN, undefined], [Infinity, undefined], ['0.5', undefined], [null, undefined]]) {
+        const child = f.child();
+        await f.manager.activate({ ...settings, imtBallPosition: position }, child);
+        assert.equal(child.document.getElementById('immersive-translate-ball').style.top, expected);
+    }
+    const small = f.child();
+    small.innerHeight = 16;
+    await f.manager.activate({ ...settings, imtBallPosition: 0.5 }, small);
+    const ball = small.document.getElementById('immersive-translate-ball');
+    assert.equal(ball.style.top, '0px');
+    small.innerHeight = 232;
+    small.fire('resize');
+    assert.equal(ball.style.top, '100px');
+});
+
+test('停用立即移除拖动和缩放监听，不等待 SDK 恢复原文', async (t) => {
+    const f = fixture(t);
+    const child = f.child();
+    const restore = deferred();
+    const saved = [];
+    await f.manager.activate({ ...settings, imtBallPosition: 0.5 }, child, (position) => saved.push(position));
+    child.immersiveTranslateSwitchTranslateState = () => restore.promise;
+    const ball = child.document.getElementById('immersive-translate-ball');
+    ball.fire('mousedown', { button: 0, clientY: 10 });
+    const stopped = f.manager.deactivate(child);
+    try {
+        assert.equal(ball.listenerCount('mousedown'), 0);
+        assert.equal(child.document.listenerCount('mousemove'), 0);
+        assert.equal(child.document.listenerCount('mouseup'), 0);
+        assert.equal(child.listenerCount('resize'), 0);
+        child.document.fire('mousemove', { clientY: 100 });
+        child.document.fire('mouseup');
+        assert.deepEqual(saved, []);
+    } finally {
+        restore.resolve();
+        await stopped;
+    }
+});
+
+for (const asynchronous of [false, true]) {
+    test(`${asynchronous ? '异步' : '同步'}保存位置失败被处理，后续仍可拖动保存`, async (t) => {
+        const f = fixture(t);
+        const child = f.child();
+        child.innerHeight = 232;
+        const error = new Error('position save failed');
+        let saves = 0;
+        const save = () => {
+            if (++saves > 1) return;
+            if (asynchronous) return Promise.reject(error);
+            throw error;
+        };
+        const errors = t.mock.method(console, 'error', () => {});
+        await f.manager.activate(settings, child, save);
+        const ball = child.document.getElementById('immersive-translate-ball');
+        for (const y of [80, 100]) {
+            ball.fire('mousedown', { button: 0, clientY: 10 });
+            child.document.fire('mousemove', { clientY: y });
+            child.document.fire('mouseup');
+            await settle();
+        }
+        assert.equal(saves, 2);
+        assert.equal(errors.mock.callCount(), 1);
+        assert.equal(errors.mock.calls[0].arguments.at(-1), error);
+        assert.equal(ball.style.top, '190px');
+    });
+}
 
 test('子窗口GM_fetch保留URLSearchParams、响应数据与不区分大小写的头部契约', async (t) => {
     const f = fixture(t);

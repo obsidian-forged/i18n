@@ -69,7 +69,11 @@ export class CoreManager {
 
         if (!this.immersiveWindows) {
             this.immersiveWindows = new ImmersiveWindowManager(this.i18n.app, {
-                activate: (win) => activateIMT(this.i18n.settings, win),
+                activate: (win) => activateIMT(this.i18n.settings, win, async (position: number) => {
+                    if (this.immersiveDisposed) return;
+                    this.i18n.settings.imtBallPosition = position;
+                    await this.i18n.saveSettings();
+                }),
                 deactivate: (win) => deactivateIMT(win),
                 onError: (error) => this.reportImmersiveError(error)
             });

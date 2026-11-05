@@ -16,6 +16,7 @@ const sourceRequire = createRequire(filename);
 function fixture() {
     const events = [];
     const managers = [];
+    const positionCallbacks = [];
     const settings = { modeImt: false, imtPagerule: {} };
     const i18n = {
         settings,
@@ -36,7 +37,10 @@ function fixture() {
     const module = { exports: {} };
     const requireSource = (id) => {
         if (id === '../utils') return {
-            activateIMT: async (value, win) => events.push(['activate', value, win]),
+            activateIMT: async (value, win, onPositionChange) => {
+                events.push(['activate', value, win]);
+                positionCallbacks.push(onPositionChange);
+            },
             deactivateIMT: async (win) => events.push(['deactivate', win])
         };
         if (id === '../utils/ui/immersive-windows') return { ImmersiveWindowManager };
@@ -45,7 +49,7 @@ function fixture() {
         return sourceRequire(id);
     };
     new Function('require', 'module', 'exports', compiled)(requireSource, module, module.exports);
-    return { core: new module.exports.CoreManager(i18n), i18n, settings, events, managers };
+    return { core: new module.exports.CoreManager(i18n), i18n, settings, events, managers, positionCallbacks };
 }
 
 test('启用后按目标窗口传递当前配置，单窗口错误提供可见提示', async () => {
@@ -86,6 +90,24 @@ test('插件卸载释放运行时并保留用户启用偏好', async () => {
     await f.core.activateIMT();
     assert.equal(f.managers.length, 1);
     assert.equal(f.events.filter(([name]) => name === 'start').length, 0);
+});
+
+test('窗口拖动回调持久化位置且保留启用偏好，卸载后不再改配置', async () => {
+    const f = fixture();
+    await f.core.activateIMT();
+    await f.managers[0].handlers.activate({});
+    assert.equal(typeof f.positionCallbacks[0], 'function');
+    f.events.length = 0;
+    await f.positionCallbacks[0](0.625);
+    assert.equal(f.settings.imtBallPosition, 0.625);
+    assert.equal(f.settings.modeImt, true);
+    assert.deepEqual(f.events, [['save', true]]);
+
+    await f.core.disposeIMT();
+    f.events.length = 0;
+    await f.positionCallbacks[0](0.25);
+    assert.equal(f.settings.imtBallPosition, 0.625);
+    assert.deepEqual(f.events, []);
 });
 
 test('保存启用偏好期间卸载，不在异步保存结束后重新启动 SDK', async () => {
