@@ -15,6 +15,9 @@ import { I18nSettings } from '../../settings/data';
  * 只有在以下上下文中出现的字符串才会被考虑提取
  */
 import { AST_DEFAULT_CONFIG, AST_DEFAULT_RULES } from './config';
+import { findLocalizationDictionaries } from './localization-dictionaries';
+
+const LOCALIZATION_PROPERTY = 'LocalizationProperty';
 
 export class AstTranslator {
     private settings: I18nSettings;
@@ -87,21 +90,28 @@ export class AstTranslator {
         // 1. 构建查找表
         const strictMap = new Map<string, string>(); // type:name:source -> target
         const looseMap = new Map<string, string>();  // source -> target (fallback)
+        const localization = translations.some((item) => item.type === LOCALIZATION_PROPERTY)
+            ? this.getLocalizationProperties(ast) : new Map<t.StringLiteral | t.TemplateLiteral, string>();
 
         translations.forEach(item => {
             if (item.type && item.name) {
                 strictMap.set(this.getFingerprint(item), item.target);
             }
-            looseMap.set(item.source, item.target);
+            // 本地化查找键可能与英文值相同，字典译文不能参与源码范围的宽松替换。
+            if (item.type !== LOCALIZATION_PROPERTY) looseMap.set(item.source, item.target);
         });
 
         // 2. 遍历所有字符串节点 (不限于白名单，以支持手动添加的条目)
-        this.traverseAllStrings(ast, (type, name, valueNode) => {
+        const replace = (type: string, name: string, valueNode: t.StringLiteral | t.TemplateLiteral) => {
             const source = this.extractSource(valueNode);
             if (!source) return;
 
             // 尝试匹配
-            let target = strictMap.get(this.getFingerprint({ type, name, source } as any));
+            const localName = localization.get(valueNode);
+            const localTarget = localName ? strictMap.get(this.getFingerprint({ type: LOCALIZATION_PROPERTY, name: localName, source })) : undefined;
+            // 增量提取会与旧类型条目共存，未翻译的新条目不能盖过已有译文。
+            let target = localTarget && localTarget !== source ? localTarget : undefined;
+            if (target === undefined) target = strictMap.get(this.getFingerprint({ type, name, source }));
             if (!target) {
                 target = looseMap.get(source);
             }
@@ -109,7 +119,8 @@ export class AstTranslator {
             if (target && target !== source) {
                 this.replaceSource(valueNode, target);
             }
-        });
+        };
+        this.traverseAllStrings(ast, replace);
 
         // 3. 生成代码
         return generate(ast, {
@@ -129,27 +140,37 @@ export class AstTranslator {
         // 1. 构建查找表
         const strictMap = new Map<string, string>(); // fingerprint -> target
         const looseMap = new Map<string, string>();  // source -> target
+        const localization = translations.some((item) => item.type === LOCALIZATION_PROPERTY)
+            ? this.getLocalizationProperties(ast) : new Map<t.StringLiteral | t.TemplateLiteral, string>();
 
         translations.forEach(item => {
             if (item.type && item.name) {
                 strictMap.set(this.getFingerprint(item), item.target);
             }
-            looseMap.set(item.source, item.target);
+            if (item.type !== LOCALIZATION_PROPERTY) looseMap.set(item.source, item.target);
         });
 
         // 2. 遍历所有匹配项
-        this.traverseAllStrings(ast, (type, name, valueNode) => {
+        const record = (type: string, name: string, valueNode: t.StringLiteral | t.TemplateLiteral) => {
             const source = this.extractSource(valueNode);
             if (!source) return;
 
-            const fingerprint = this.getFingerprint({ type, name, source } as any);
-            if (strictMap.has(fingerprint)) {
+            const localName = localization.get(valueNode);
+            const localFingerprint = localName ? this.getFingerprint({ type: LOCALIZATION_PROPERTY, name: localName, source }) : '';
+            const localTarget = strictMap.get(localFingerprint);
+            const fingerprint = this.getFingerprint({ type, name, source });
+            if (localTarget && localTarget !== source) {
+                hitFingerprints.add(localFingerprint);
+            } else if (strictMap.has(fingerprint)) {
                 hitFingerprints.add(fingerprint);
             } else if (looseMap.has(source)) {
                 // 如果严格匹配失败但宽松匹配成功，记录下宽松匹配的标示
                 hitFingerprints.add(source);
+            } else if (localFingerprint && strictMap.has(localFingerprint)) {
+                hitFingerprints.add(localFingerprint);
             }
-        });
+        };
+        this.traverseAllStrings(ast, record);
 
         return hitFingerprints;
     }
@@ -295,11 +316,24 @@ export class AstTranslator {
     //                                      3. AST Traversal
     // ====================================================================================================
 
+    private getLocalizationProperties(ast: t.Node): Map<t.StringLiteral | t.TemplateLiteral, string> {
+        const properties = new Map<t.StringLiteral | t.TemplateLiteral, string>();
+        for (const dictionary of findLocalizationDictionaries(ast, this.config.functions)) {
+            for (const property of dictionary.properties) {
+                if (!t.isObjectProperty(property) || !this.isStrNode(property.value)) continue;
+                const name = this.getObjKeyName(property.key);
+                if (name) properties.set(property.value, name);
+            }
+        }
+        return properties;
+    }
+
     /**
      * 白名单遍历器 (用于提取)
      * 只访问 settings 中明确列出的上下文
      */
     private traverseWhitelist(ast: t.Node, callback: (type: string, name: string, valueNode: t.StringLiteral | t.TemplateLiteral) => void) {
+        const dictionaries = findLocalizationDictionaries(ast, this.config.functions);
         traverse(ast, {
             // 1. 变量声明 (const title = "...")
             VariableDeclarator: (path) => {
@@ -321,8 +355,9 @@ export class AstTranslator {
             ObjectProperty: (path) => {
                 const node = path.node;
                 const name = this.getObjKeyName(node.key);
-                if (name && this.config.keys.includes(name) && this.isStrNode(node.value)) {
-                    callback('ObjectProperty', name, node.value);
+                if (name && this.isStrNode(node.value)) {
+                    if (t.isObjectExpression(path.parent) && dictionaries.has(path.parent)) callback(LOCALIZATION_PROPERTY, name, node.value);
+                    else if (this.config.keys.includes(name)) callback('ObjectProperty', name, node.value);
                 }
             },
             // 4. 函数调用 (Notice("..."))
