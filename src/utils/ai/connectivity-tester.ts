@@ -1,4 +1,4 @@
-import { requestUrl } from "obsidian";
+import { requestUrl, RequestUrlResponse } from "obsidian";
 import { t } from "src/locales";
 import { normalizeOpenAIUrl } from "./url-helper";
 import { parseTranslationResponse } from "./response-parser";
@@ -40,6 +40,7 @@ export class ConnectivityTester {
     private engine: 'openai' | 'gemini' | 'ollama';
     private responseFormat: string;
     private reasoningEffort: string;
+    private reasoningRejected = false;
     private timeout: number;
     private language: string;
     private style: string;
@@ -59,7 +60,7 @@ export class ConnectivityTester {
 
     /** 把推理强度合入请求体；'auto' 表示不干预服务商默认行为 */
     private withReasoning(body: Record<string, any>): Record<string, any> {
-        if (this.reasoningEffort && this.reasoningEffort !== 'auto') {
+        if (!this.reasoningRejected && this.reasoningEffort && this.reasoningEffort !== 'auto') {
             body.reasoning_effort = this.reasoningEffort;
         }
         return body;
@@ -88,6 +89,7 @@ export class ConnectivityTester {
 
     async runDeepDiagnostic(onProgress?: (report: DeepDiagnosticReport) => void): Promise<DeepDiagnosticReport> {
         this.logs = [];
+        this.reasoningRejected = false;
         const report: DeepDiagnosticReport = {
             overallStatus: 'healthy',
             endpoint: { status: 'na', value: this.url },
@@ -653,7 +655,27 @@ export class ConnectivityTester {
         return report;
     }
 
-    private async safeRequest(url: string, method: string, includeAuth = false, body?: any) {
+    /** 只接受明确针对推理参数的拒绝，避免把其他请求错误误判为能力限制。 */
+    private rejectsReasoning(res: { json: unknown; text: string }): boolean {
+        let payload: unknown;
+        try { payload = res.json; } catch { payload = undefined; }
+        if (!payload) {
+            try { payload = JSON.parse(res.text); } catch { payload = undefined; }
+        }
+        const responseError = payload && typeof payload === 'object' && 'error' in payload ? payload.error : payload;
+        const error = responseError && typeof responseError === 'object'
+            ? responseError as { param?: unknown; code?: unknown; message?: unknown }
+            : undefined;
+        if (error?.param === 'reasoning_effort' && typeof error.code === 'string' &&
+            /^(unknown|unrecognized|unsupported|unexpected|invalid|extra)_(parameter|argument|field|value)$/.test(error.code)) {
+            return true;
+        }
+        const message = typeof error?.message === 'string' ? error.message : (res.text || '');
+        return /\b(unknown|unrecognized|unsupported|unexpected|invalid|extra)\s+(request\s+)?(parameter|argument|field|input)(\s+(supplied|provided))?\s*:?\s*['"`]?reasoning_effort\b/i.test(message) ||
+            /\breasoning_effort['"`]?\s*(:\s*)?(is\s+)?(not\s+(supported|allowed|permitted)|unsupported|unexpected)\b/i.test(message);
+    }
+
+    private async safeRequest(url: string, method: string, includeAuth = false, body?: any): Promise<RequestUrlResponse> {
         const headers: Record<string, string> = {};
         if (includeAuth) headers['Authorization'] = `Bearer ${this.key}`;
         if (body) headers['Content-Type'] = 'application/json';
@@ -666,6 +688,15 @@ export class ConnectivityTester {
                 body: body ? JSON.stringify(body) : undefined,
                 throw: false
             });
+
+            if (!this.reasoningRejected && body?.reasoning_effort &&
+                (res.status === 400 || res.status === 422) && this.rejectsReasoning(res)) {
+                this.reasoningRejected = true;
+                const retryBody = { ...body };
+                delete retryBody.reasoning_effort;
+                this.addLog('Capabilities', '服务商不接受 reasoning_effort 参数，已移除并重试，本轮后续检测不再发送该参数。', 'info');
+                return this.safeRequest(url, method, includeAuth, retryBody);
+            }
 
             // 安全防御：如果接口返回的是带有 HTML 的网页文件，说明填错了基础地址（比如误填了官网主页）
             if (res.status >= 200 && res.status < 300 && res.text) {
