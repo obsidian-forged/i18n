@@ -11,7 +11,7 @@ const filename = path.join(projectRoot, 'src/styles.css');
 const candidates = [
     'flex', 'h-full', 'border', 'p-4', 'bg-background', 'text-foreground',
     'bg-popover', 'text-popover-foreground', 'dark:bg-input/30',
-    'data-[state=open]:animate-in'
+    'data-[state=open]:animate-in', 'font-sans', 'font-mono'
 ];
 
 // 读取真实入口并沿用生产 CLI 的编译、优化接口，不读取可能过期的构建产物。
@@ -85,6 +85,27 @@ test('编译后的普通样式仅影响插件界面和沉浸式翻译控件', ()
 test('主题变量不会写入宿主根节点或全局暗色主题', () => {
     // Tailwind 自身生成的属性初始化不改变宿主元素的常规样式。
     assertNoLeaks((name) => name.startsWith('--') && !name.startsWith('--tw-'));
+});
+
+test('界面和代码字体使用 Obsidian 设置，暗色主题不覆盖字体映射', () => {
+    for (const [token, source] of [
+        ['--font-sans', '--font-interface'],
+        ['--font-serif', '--font-interface'],
+        ['--font-mono', '--font-monospace']
+    ]) {
+        const definitions = rules.flatMap((rule) => declarations(rule)
+            .filter((declaration) => property(declaration) === token));
+        assert.ok(definitions.length > 0, `${token} 必须在插件作用域中定义`);
+        assert.ok(definitions.every((declaration) => usesVariable(declaration, source)),
+            `${token} 的所有定义（含暗色覆盖）必须引用 ${source}`);
+    }
+    for (const [candidate, token] of [
+        ['font-sans', '--font-sans'], ['font-mono', '--font-mono']
+    ]) {
+        assert.ok(utilityRules(candidate).some((rule) => declarations(rule).some((declaration) => (
+            property(declaration) === 'font-family' && usesVariable(declaration, token)
+        ))), `${candidate} 必须通过字体变量应用用户设置`);
+    }
 });
 
 test('隔离后保留视图、Portal、暗色和展开动画需要的样式', () => {
