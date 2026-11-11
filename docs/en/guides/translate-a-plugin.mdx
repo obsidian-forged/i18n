@@ -4,15 +4,14 @@ sidebarTitle: "Translate a Plugin"
 description: "Extract strings, batch-translate them, review them, and apply the result to an installed plugin."
 ---
 
-This guide walks through the current plugin translation flow for an installed Obsidian plugin. Plugin extraction reads the target plugin's `main.js`.
+This guide walks through translation of an installed Obsidian community plugin.
 
 <Note>
   **Prerequisites**
 
   - Obsidian i18n is installed and enabled
-  - the target plugin is installed in the current vault
-  - the target plugin directory contains `main.js`
-  - if you want AI translation, at least one provider profile is configured
+  - the target plugin is installed and its directory contains `main.js`
+  - if using AI translation, at least one provider profile is configured; targets can also be entered manually
 </Note>
 
 ## End-to-end flow
@@ -22,27 +21,51 @@ This guide walks through the current plugin translation flow for an installed Ob
     Click the globe icon, or run the command that opens the i18n panel.
   </Step>
   <Step title="Find the target plugin">
-    Use the **插件** tab and locate the installed plugin by name or ID.
+    Locate the target by name or ID in the `插件` tab.
   </Step>
-  <Step title="Run Extract">
-    Click **Extract**. The plugin reads `main.js` and generates a local translation source with AST and Regex sections.
+  <Step title="Extract strings">
+    Run `提取译文` from the plugin's more-actions menu to generate a local translation source with AST and Regex rows from `main.js`.
   </Step>
-  <Step title="Inspect AST and Regex rows">
-    AST rows carry node type and variable-name context. Regex rows come from Regex matches against source text.
+  <Step title="Open the editor and inspect rows">
+    Use `前往编辑器` to open the translation. The AST table shows node type, variable name, source, and target; the Regex workspace shows Regex-extracted rows.
   </Step>
   <Step title="Open the AI panel">
-    Use the AST or Regex AI panel.
+    For AI translation, open the AI panel in the AST or Regex workspace. For manual translation, edit the target cells directly.
   </Step>
-  <Step title="Set language, batch size, concurrency, and timeout">
-    These panels write back to `language`, `llmBatchSize`, `llmConcurrencyLimit`, and `llmTimeout`. Defaults are `zh-cn`, `10`, `3`, and `60000`.
+  <Step title="Confirm global settings">
+    Check target language, style, batch size, concurrency, and timeout. A fresh installation defaults to `zh-cn`, with batch size `10`, concurrency `3`, and timeout `60000` milliseconds.
+  </Step>
+  <Step title="Inspect the estimate">
+    Check estimated tokens and input-side cost before sending requests. See [AI translation](/en/features/ai-translation) for the calculation scope.
   </Step>
   <Step title="Translate">
-    By default, only rows whose `target` is empty, whitespace-only, or equal to `source` are sent. Existing translated rows are resent only when overwrite is enabled.
+    Start batch translation and wait for completion. By default, only untranslated rows are sent; overwrite mode also resends existing translations.
   </Step>
-  <Step title="Review the output">
-    Check placeholders such as `${variable}` and escape sequences such as `\n` before applying.
+  <Step title="Review and save">
+    Check placeholders such as `${variable}` and escape sequences such as `\n`, revise terminology, and save. Click `保存` when automatic saving is disabled.
   </Step>
   <Step title="Apply">
-    Click **Apply**. If the result is wrong, click **Restore** before applying again.
+    Use `应用` in the Manager. If the interface behaves incorrectly, use `还原` first.
   </Step>
 </Steps>
+
+<Tip>
+  The `未翻译` filter includes targets that are empty, whitespace-only, or still equal to their source.
+</Tip>
+
+## Add new strings after an upgrade
+
+To add strings to an existing translation, first restore it in the Manager if it is applied, then run `增量提取` in the editor. This keeps existing targets for matching type, property name, and source text while adding newly extracted rows.
+
+Starting in 2.0.27, recognized localization dictionaries can produce `LocalizationProperty` rows. If an existing file lacks these rows, extract or incrementally extract them, translate the new rows, save, and apply again; upgrading I18N alone does not add them to the current editor. See the [AST editor](/en/features/ast-editor) for the steps.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Export a local archive or publish to GitHub" icon="share" href="/en/guides/share-translations">
+    Learn the difference between a local `.i18n.gz` archive and Cloud publishing.
+  </Card>
+  <Card title="Understand apply and restore" icon="rotate-left" href="/en/features/apply-restore">
+    Review backup, injection, and restoration.
+  </Card>
+</CardGroup>

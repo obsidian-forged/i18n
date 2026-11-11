@@ -1,10 +1,10 @@
 ---
 title: "Configure AI providers"
 sidebarTitle: "AI Providers"
-description: "Use the `语言模型` tab for provider profiles, connection testing, and `llmResponseFormat`."
+description: "Configure provider profiles, connection tests, response format, reasoning effort, and custom pricing in the 语言模型 tab."
 ---
 
-In the current source, AI provider configuration lives in **Settings → Community Plugins → I18N → `语言模型`**. This page is responsible for provider profiles, connectivity testing, and `llmResponseFormat`.
+AI provider settings live in **Settings → Community Plugins → I18N → `语言模型`**. This page contains provider profiles, connectivity tests, response format, reasoning effort, pricing, and prompt templates.
 
 ## Supported providers
 
@@ -12,7 +12,7 @@ In the current source, AI provider configuration lives in **Settings → Communi
 |---|----------|----------|
 | 1 | OpenAI-compatible (custom) | [platform.openai.com](https://platform.openai.com/) |
 | 2 | Gemini | [aistudio.google.com](https://aistudio.google.com/) |
-| 3 | Ollama (local) | [ollama.com](https://ollama.com/) |
+| 3 | Ollama / LM Studio (local) | [ollama.com](https://ollama.com/) |
 | 4 | DeepSeek | [platform.deepseek.com](https://platform.deepseek.com/) |
 | 5 | Zhipu AI (GLM) | [open.bigmodel.cn](https://open.bigmodel.cn/) |
 | 6 | Moonshot (Kimi) | [platform.moonshot.cn](https://platform.moonshot.cn/) |
@@ -30,20 +30,20 @@ In the current source, AI provider configuration lives in **Settings → Communi
 ## Add a provider profile
 
 <Steps>
-  <Step title="Open the `语言模型` tab">
+  <Step title="Open the 语言模型 tab">
     Go to **Settings → Community Plugins → I18N → `语言模型`**.
   </Step>
   <Step title="Choose a provider">
-    Select the target platform from the provider dropdown.
+    Choose the target platform from the provider dropdown.
   </Step>
   <Step title="Create or switch a profile">
-    The current UI supports adding, switching, and deleting profiles.
+    The UI supports adding, switching, and deleting profiles.
   </Step>
   <Step title="Fill in connection fields">
-    When you create a profile, the plugin writes that provider's default URL and default model. Then you fill in the API key, model name, and price fields.
+    Check the profile's URL, API key, and model ID. Initial presets do not guarantee a provider's current model availability; custom endpoints and local models require their actual connection details.
   </Step>
   <Step title="Run connection testing">
-    Click the test button to run connectivity diagnostics.
+    Click the test button and inspect the diagnostic result.
   </Step>
 </Steps>
 
@@ -51,28 +51,35 @@ In the current source, AI provider configuration lives in **Settings → Communi
 
 <AccordionGroup>
   <Accordion title="URL / API Key / Model">
-    These belong to the active provider profile and are stored independently per profile.
+    These are independently stored in the active provider profile. Cloud OpenAI-compatible endpoints and local services support model-list refresh; you can still enter a model ID manually when no list is available.
   </Accordion>
-
-  <Accordion title="priceInput / priceOutput">
-    These fields drive cost estimation and are stored as CNY per million tokens.
+  <Accordion title="自定义价格 (custom pricing)">
+    `useCustomPrice` controls whether to use the profile's custom input rate. Both `priceInput` and `priceOutput` are stored in CNY per million tokens, but the current estimate uses only an enabled custom `priceInput` greater than zero; otherwise it falls back to a built-in model input rate. `priceOutput` currently does not affect the estimate.
   </Accordion>
-
-  <Accordion title="llmResponseFormat">
-    This global field is edited on the `语言模型` page. Its current default is `text`.
+  <Accordion title="响应格式 (response format)">
+    `llmResponseFormat` is global and defaults to `text`. OpenAI-compatible translation requests can select `text`, `json_object`, or `json_schema`; actual diagnostic results determine whether a model accepts the format.
+  </Accordion>
+  <Accordion title="推理强度 (reasoning effort)">
+    `llmReasoningEffort` is global and defaults to `none`. Values are `none`, `low`, `medium`, `high`, and `auto`. OpenAI-compatible translation requests send the selected `reasoning_effort`; choosing `auto` omits the parameter and leaves the decision to the provider. Support varies by model, and choosing `none` does not guarantee that every provider disables reasoning.
   </Accordion>
 </AccordionGroup>
 
+## Parameter compatibility and diagnostics
+
+When connection diagnostics receive HTTP `400` or `422` with an error explicitly rejecting `reasoning_effort`, they remove that field and retry once. Later requests in the same diagnostic run omit it; a new run probes it again. This fallback does not suppress other errors.
+
+OpenAI-compatible batch translation requests also handle recognized parameter-rejection errors by removing the parameter and retrying. This does not establish compatibility for every model's format, reasoning output, or translation quality; inspect the diagnostics and actual translations.
+
 ## Fields edited elsewhere
 
-These global translation fields are read and written from the AST / Regex / Theme AI panels:
+These global translation fields are read and written by the AST / Regex / Theme AI panels:
 
-- `llmLanguage`
-- `llmStyle`
-- `llmBatchSize`
-- `llmConcurrencyLimit`
-- `llmTimeout`
+- target language: `language` / `llmLanguage`
+- translation style: `llmStyle`
+- rows per batch: `llmBatchSize`
+- concurrent requests: `llmConcurrencyLimit`
+- timeout: `llmTimeout`
 
 <Note>
-  Ollama defaults to `http://localhost:11434`.
+  Ollama defaults to `http://localhost:11434`. Local Ollama does not require an API key; configure other local compatible services according to their authentication requirements.
 </Note>

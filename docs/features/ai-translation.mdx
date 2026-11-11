@@ -1,73 +1,57 @@
 ---
 title: "AI 批量翻译与费用预估"
 sidebarTitle: "AI 翻译"
-description: "使用当前源码支持的 16 个 LLM 服务商或兼容接口批量翻译，并在发送前查看费用预估与缓存命中。"
+description: "使用内置服务商或兼容接口批量翻译 AST、Regex 和主题条目，并在发送前查看 Token 与输入侧费用估算。"
 ---
 
-AI 翻译引擎会把提取结果发送给大语言模型，再把返回结果写回编辑器。当前源码内置 16 个服务商或兼容接口配置。
+AI 翻译引擎会把当前文件中符合翻译条件的条目发送给当前服务商方案，再把返回结果写回 AST、Regex 或主题编辑器。
 
 ## 支持的服务商
 
-| 服务商 | 说明 |
-|--------|------|
-| OpenAI-compatible（自定义） | 任意兼容 OpenAI API 的平台、代理或自托管模型 |
-| Gemini | Google Gemini |
-| Ollama | 本地运行模型 |
-| DeepSeek | 默认模型：`deepseek-chat` |
-| 智谱 AI（GLM） | 默认模型：`glm-4-flash` |
-| Moonshot（Kimi） | 默认模型：`moonshot-v1-8k` |
-| 阿里云通义 | 默认模型：`qwen-plus` |
-| 百度千帆 | 默认模型：`ernie-4.0-8k-preview` |
-| 字节跳动豆包 / Ark | 默认模型：`doubao-pro-4k` |
-| Groq | 默认模型：`llama-3.3-70b-versatile` |
-| SiliconFlow | 默认模型：`deepseek-ai/DeepSeek-V3` |
-| OpenRouter | 默认模型：`anthropic/claude-3.5-sonnet` |
-| DeepInfra | 默认模型：`meta-llama/Llama-3.3-70B-Instruct` |
-| Mistral AI | 默认模型：`mistral-small-latest` |
-| MiniMax | 默认模型：`abab6.5-chat` |
-| StepFun | 默认模型：`step-1-8k` |
+当前内置 16 个服务商或兼容接口配置，完整列表见 [AI 服务商配置](/configuration/ai-providers)。同一个服务商可以创建多套方案，每套方案独立保存 URL、API Key、模型和价格字段。
 
-同一个服务商可以创建多套 provider profile。每套 profile 独立保存 URL、API Key、模型和价格字段。
+新建方案使用插件内置的初始配置。请在 `语言模型` 页面核对当前 URL 和模型 ID；服务商的可用模型还取决于接口和账号权限。支持刷新模型列表的接口会优先使用获取到的列表，无法获取时保留内置预设或手动输入。
 
 <Note>
-  Ollama 的默认地址是 `http://localhost:11434`，不需要 API Key。
+  Ollama 的默认地址是 `http://localhost:11434`。本地 Ollama 不需要 API Key；连接其他服务时按该服务的认证要求填写。
 </Note>
 
 ## 费用预估
 
-AI 面板在正式发送请求前会显示：
+AI 面板在发送请求前显示 `预期消耗`，包含预计 Token 数和人民币费用。单价在 `语言模型` 页的当前方案中配置。
 
-- **预计 Token 数**
-- **预计费用**
-- **输入 / 输出单价**
+当前估算规则是：
 
-价格来自当前 provider profile 的 `priceInput` 和 `priceOutput`。
+- 开启自定义价格且 `priceInput` 大于 0 时，按该输入单价计算，单位为人民币 / 每百万 Token。
+- 未启用有效的自定义输入价时，按模型名匹配内置输入价；未收录的模型使用内置默认价。
+- 这是输入侧的粗略估算，不包含输出 Token 的费用，也不使用 `priceOutput`，不能作为服务商实际账单。
 
 ## 并发与批次大小
 
-AI 面板会读取并写入这些全局字段：
+AI 面板会读取并写入这些全局设置：
 
-- `llmBatchSize`
-- `llmConcurrencyLimit`
-- `llmTimeout`
-- `llmLanguage`
-- `llmStyle`
+- 目标语言：`language` / `llmLanguage`
+- 翻译风格：`llmStyle`
+- 每批条目数：`llmBatchSize`
+- 并发请求数：`llmConcurrencyLimit`
+- 超时时间：`llmTimeout`，单位为毫秒
 
-当返回 `429 Too Many Requests` 时，先降低 `llmConcurrencyLimit`，再降低 `llmBatchSize`。
+新安装的默认批次大小、并发数和超时时间分别为 `10`、`3` 和 `60000`。遇到 `429 Too Many Requests` 时，可以先降低并发数，再减小批次大小。
 
-## 本地缓存
+## 默认翻译范围
 
-Obsidian i18n 会为已经成功翻译过的字符串建立本地缓存。再次翻译相同原文时：
+默认只发送译文为空、仅含空白字符或仍等于原文的条目。开启覆盖模式后，已有译文也会重新发送。
 
-- 命中缓存：直接复用，不发送 API 请求
-- 未命中缓存：进入模型调用流程
+范围由当前文件的条目和覆盖模式决定，表格搜索、筛选和行选中状态不限制 AI 批量请求。
+
+这里复用的是当前编辑器里已有的译文，不是跨文件的本地译文缓存。另一个译文文件中的相同原文，或重置后重新进入待翻译范围的条目，仍会进入模型请求流程。
 
 ## 自定义提示词
 
-插件内置三类默认 Prompt 模板：
+插件内置三类提示词模板：
 
-- AST 翻译
-- Regex 翻译
-- 主题翻译
+- AST 翻译：`llmAstPrompt`
+- Regex 翻译：`llmRegexPrompt`
+- 主题翻译：`llmThemePrompt`
 
-这些模板在 **设置 → 社区插件 → I18N → 语言模型** 中覆盖。
+在 **设置 → 社区插件 → I18N → 语言模型** 中修改对应模板。连接、响应格式和推理强度的设置见 [AI 服务商配置](/configuration/ai-providers)。

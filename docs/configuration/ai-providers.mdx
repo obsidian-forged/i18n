@@ -1,10 +1,10 @@
 ---
 title: "连接 AI 服务商以启用自动翻译"
 sidebarTitle: "AI 服务商"
-description: "在 `语言模型` 标签页中配置 provider profile，并区分连接设置与全局翻译参数。"
+description: "在语言模型标签页配置服务商方案、连接测试、响应格式、推理强度和自定义价格。"
 ---
 
-当前源码的 AI 服务商配置入口在 **设置 → 社区插件 → I18N → 语言模型**。这一页负责 provider profile、本地连接测试和 `llmResponseFormat`。
+AI 服务商配置入口在 **设置 → 社区插件 → I18N → 语言模型**。这一页负责服务商方案、连接测试、响应格式、推理强度、价格和提示词模板。
 
 ## 支持的服务商
 
@@ -12,7 +12,7 @@ description: "在 `语言模型` 标签页中配置 provider profile，并区分
 |---|--------|------|
 | 1 | OpenAI-compatible（自定义） | [platform.openai.com](https://platform.openai.com/) |
 | 2 | Gemini | [aistudio.google.com](https://aistudio.google.com/) |
-| 3 | Ollama（本地） | [ollama.com](https://ollama.com/) |
+| 3 | Ollama / LM Studio（本地） | [ollama.com](https://ollama.com/) |
 | 4 | DeepSeek | [platform.deepseek.com](https://platform.deepseek.com/) |
 | 5 | 智谱 AI（GLM） | [open.bigmodel.cn](https://open.bigmodel.cn/) |
 | 6 | Moonshot（Kimi） | [platform.moonshot.cn](https://platform.moonshot.cn/) |
@@ -27,23 +27,23 @@ description: "在 `语言模型` 标签页中配置 provider profile，并区分
 | 15 | MiniMax | [platform.minimaxi.com](https://platform.minimaxi.com/) |
 | 16 | StepFun | [platform.stepfun.com](https://platform.stepfun.com/) |
 
-## 添加一个 provider profile
+## 添加一个服务商方案
 
 <Steps>
   <Step title="打开语言模型标签页">
     进入 **设置 → 社区插件 → I18N → 语言模型**。
   </Step>
   <Step title="选择服务商">
-    在 provider 下拉框中选择目标平台。
+    在服务商下拉框中选择目标平台。
   </Step>
-  <Step title="创建或切换 profile">
-    当前 UI 支持新增、切换和删除 profile。
+  <Step title="创建或切换方案">
+    当前 UI 支持新增、切换和删除方案。
   </Step>
   <Step title="填写连接信息">
-    新建 profile 时，插件会写入该服务商的默认 URL 和默认模型；你再补充 API Key、模型名和价格字段。
+    核对方案的 URL、API Key 和模型 ID。内置初始值不是服务商当前可用模型的保证；自定义接口和本地模型需要填写实际连接信息。
   </Step>
   <Step title="执行测试连接">
-    点击测试按钮，运行连接诊断。
+    点击测试按钮，查看连接诊断结果。
   </Step>
 </Steps>
 
@@ -51,28 +51,35 @@ description: "在 `语言模型` 标签页中配置 provider profile，并区分
 
 <AccordionGroup>
   <Accordion title="URL / API Key / Model">
-    这些字段属于当前 provider profile，彼此独立保存。
+    这些字段属于当前服务商方案，彼此独立保存。云端 OpenAI 兼容接口和本地服务支持刷新模型列表；无法取得列表时仍可手动填写模型 ID。
   </Accordion>
-
-  <Accordion title="priceInput / priceOutput">
-    这两个字段驱动费用预估，单位是人民币 / 每百万 Token。
+  <Accordion title="自定义价格">
+    `useCustomPrice` 控制是否使用方案的自定义输入价。`priceInput`、`priceOutput` 均以人民币 / 每百万 Token 保存，但当前费用估算仅使用大于 0 的自定义 `priceInput`；否则回退到内置模型输入价。`priceOutput` 当前不参与估算。
   </Accordion>
-
-  <Accordion title="llmResponseFormat">
-    这个全局字段在 `语言模型` 页面编辑，当前默认值是 `text`。
+  <Accordion title="响应格式">
+    `llmResponseFormat` 是全局字段，默认值为 `text`。OpenAI 兼容翻译请求可选择 `text`、`json_object` 或 `json_schema`；模型是否接受对应格式需要通过实际诊断确认。
+  </Accordion>
+  <Accordion title="推理强度">
+    `llmReasoningEffort` 是全局字段，默认值为 `none`。可选值为 `none`、`low`、`medium`、`high` 和 `auto`。OpenAI 兼容翻译请求会发送所选的 `reasoning_effort`；选择 `auto` 时省略该参数，交由服务商决定。模型对这些值的支持不一致，选择 `none` 不保证所有服务商都能关闭推理。
   </Accordion>
 </AccordionGroup>
+
+## 参数兼容与连接诊断
+
+连接诊断收到 HTTP `400` 或 `422`，且错误明确拒绝 `reasoning_effort` 时，会移除该字段重试一次，并在本轮后续诊断中省略它；新一轮诊断会重新探测。其他错误不会因此被忽略。
+
+OpenAI 兼容的批量翻译请求也有识别参数拒绝后移除参数重试的处理。这不能证明所有模型的格式、推理输出和译文质量都兼容；请按实际诊断结果和译文检查。
 
 ## 不在当前页直接编辑的字段
 
 下面这些全局翻译参数由 AST / Regex / Theme 的 AI 面板读写：
 
-- `llmLanguage`
-- `llmStyle`
-- `llmBatchSize`
-- `llmConcurrencyLimit`
-- `llmTimeout`
+- 目标语言：`language` / `llmLanguage`
+- 翻译风格：`llmStyle`
+- 每批条目数：`llmBatchSize`
+- 并发请求数：`llmConcurrencyLimit`
+- 超时时间：`llmTimeout`
 
 <Note>
-  Ollama 默认地址是 `http://localhost:11434`。
+  Ollama 默认地址是 `http://localhost:11434`。本地 Ollama 不需要 API Key；其他本地兼容服务按其认证要求配置。
 </Note>

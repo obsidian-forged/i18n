@@ -1,70 +1,57 @@
 ---
 title: "AI batch translation with cost estimation"
 sidebarTitle: "AI Translation"
-description: "Translate AST, Regex, and Theme rows in bulk with the current 16 built-in provider configs and inspect token and cost estimates before sending requests."
+description: "Translate AST, Regex, and Theme rows through built-in providers or compatible endpoints, with token and input-side cost estimates before requests."
 ---
 
-The AI panels send the current editor rows to the active provider profile and write returned targets back into the AST, Regex, or Theme tables. Provider definitions come from `LLM_PROVIDERS`, which currently exposes 16 built-in configs.
+The AI panels send eligible entries from the current file to the active provider profile, then write the returned targets into the AST, Regex, or Theme editor.
 
 ## Providers
 
-| Provider | Notes |
-|----------|-------|
-| OpenAI-compatible (custom) | use any OpenAI-compatible endpoint |
-| Gemini | default model `gemini-2.0-flash` |
-| Ollama | default URL `http://localhost:11434` |
-| DeepSeek | default model `deepseek-chat` |
-| Zhipu AI (GLM) | default model `glm-4-flash` |
-| Moonshot (Kimi) | default model `moonshot-v1-8k` |
-| Aliyun (Qwen) | default model `qwen-plus` |
-| Baidu (ERNIE) | default model `ernie-4.0-8k-preview` |
-| ByteDance (Doubao / Ark) | default model `doubao-pro-4k` |
-| Groq | default model `llama-3.3-70b-versatile` |
-| SiliconFlow | default model `deepseek-ai/DeepSeek-V3` |
-| OpenRouter | default model `anthropic/claude-3.5-sonnet` |
-| DeepInfra | default model `meta-llama/Llama-3.3-70B-Instruct` |
-| Mistral AI | default model `mistral-small-latest` |
-| MiniMax | default model `abab6.5-chat` |
-| StepFun | default model `step-1-8k` |
+The plugin currently defines 16 provider or compatible-endpoint configurations. See [AI provider configuration](/en/configuration/ai-providers) for the complete list. Each provider can have multiple profiles with independently stored URL, API key, model, and pricing fields.
+
+New profiles use the plugin's built-in initial configuration. Check the current URL and model ID in `语言模型`; available models also depend on the endpoint and account permissions. Where model-list refresh is supported, the selector prefers the fetched list and retains presets or manual input when it cannot obtain one.
+
+<Note>
+  Ollama defaults to `http://localhost:11434`. Local Ollama does not require an API key; configure other services according to their authentication requirements.
+</Note>
 
 ## Cost estimate
 
-Before translation starts, the AI panel calls the active provider's `estimateTokens()` implementation and shows:
+Before sending requests, the AI panel displays `预期消耗` with estimated tokens and cost in CNY. Configure prices in the active profile on `语言模型`.
 
-- estimated token count
-- estimated cost
-- the input/output pricing used by the current profile
+The current estimate works as follows:
 
-If the current profile enables custom pricing, the estimate uses those values.
+- With custom pricing enabled and `priceInput` greater than zero, it uses that input rate in CNY per million tokens.
+- Without a valid enabled custom input rate, it uses a built-in model input rate; unknown models fall back to the built-in default rate.
+- This is a rough input-side estimate. It excludes output-token costs and does not use `priceOutput`, so it is not a provider bill.
 
-## Batch size, concurrency, timeout, and language
+## Batch size and concurrency
 
-The AST / Regex / Theme AI panels edit these global settings directly:
+The AI panels read and write these global settings:
 
-- `llmBatchSize`
-- `llmConcurrencyLimit`
-- `llmTimeout`
-- `llmStyle`
-- `language` / `llmLanguage`
+- target language: `language` / `llmLanguage`
+- translation style: `llmStyle`
+- rows per batch: `llmBatchSize`
+- concurrent requests: `llmConcurrencyLimit`
+- timeout in milliseconds: `llmTimeout`
 
-Default values are `10`, `3`, and `60000` for batch size, concurrency limit, and timeout.
+For a fresh installation, batch size, concurrency, and timeout default to `10`, `3`, and `60000`. On `429 Too Many Requests`, reduce concurrency first, then reduce batch size.
 
-## What gets translated by default
+## Default translation scope
 
-The current controllers build `targetItems` and only send rows whose `target` is:
+By default, only rows whose target is empty, whitespace-only, or equal to the source are sent. Enabling overwrite also resends existing translations.
 
-- empty
-- whitespace-only
-- equal to `source`
+The current file's entries and overwrite mode determine the batch scope. Table search, filters, and row selection do not limit AI requests.
 
-Existing translated rows are only resent when overwrite is enabled in the AI panel.
+The reused content is the translation already held in the current editor, not a cross-file local translation cache. The same source in another translation file, or a reset row that becomes eligible again, still enters the model-request flow.
 
 ## Prompt templates
 
-The current implementation stores three prompt templates:
+The plugin includes three prompt templates:
 
-- `llmAstPrompt`
-- `llmRegexPrompt`
-- `llmThemePrompt`
+- AST translation: `llmAstPrompt`
+- Regex translation: `llmRegexPrompt`
+- Theme translation: `llmThemePrompt`
 
-You can edit them from **语言模型**, and for AST / Regex also from **AST 配置** and **RE 配置**.
+Edit them in **Settings → Community Plugins → I18N → `语言模型`**. See [AI provider configuration](/en/configuration/ai-providers) for connection, response-format, and reasoning-effort settings.

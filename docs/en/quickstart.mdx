@@ -11,27 +11,37 @@ This guide walks through a full plugin translation from extraction to applicatio
     Click the globe icon in the ribbon, or run the command that opens the i18n panel from the command palette.
   </Step>
   <Step title="Configure an AI provider">
-    Open **Settings → Community Plugins → I18N → `语言模型`** and create a provider profile.
+    If using AI, open **Settings → Community Plugins → I18N → `语言模型`** and configure the provider's actual connection details. Skip this step when editing translations manually.
 
-    See [AI providers](/configuration/ai-providers) for details.
+    See [AI providers](/en/configuration/ai-providers) for details.
   </Step>
   <Step title="Select a plugin">
-    In the Manager, find the plugin you want to translate and open it.
+    In the Manager's `插件` list, find the installed plugin you want to translate.
   </Step>
   <Step title="Extract strings">
-    Click **Extract**. AST extraction scans the plugin's compiled bundle and collects user-facing text without modifying source files.
+    Open the target plugin's menu, choose `提取译文` to create a local translation source, then use `前往编辑器` to open it. Extraction does not modify the target plugin's source.
   </Step>
   <Step title="Translate with AI">
-    Click **Translate**. The plugin sends extracted strings to the configured provider in batches.
+    Open the AI panel in the AST or Regex workspace, check the language and batch parameters, then start translation. Existing translated entries are skipped by default; overwrite mode sends them again. You can also edit translation cells manually.
+
+    <Tip>
+      The panel estimates input-side tokens and cost in CNY; output cost is not included. Table search, filters, and row selection do not limit the AI batch scope. See [AI translation](/en/features/ai-translation).
+    </Tip>
   </Step>
   <Step title="Review results">
-    Edit translation cells inline. Changes save automatically.
+    Review and edit translations, then leave the translation cell to commit the edit to the editor state. With `综合设置 → 自动保存` enabled, saving is triggered after that state stays unchanged for 500ms; otherwise click `保存`.
   </Step>
   <Step title="Apply the translation">
-    Click **Apply**. If the result is wrong, click **Restore** first, then troubleshoot.
+    Return to the Manager and use `应用` to write the translation to the target plugin's runtime files.
+
+    If the interface is wrong, use `还原` and confirm its result before investigating entries. If recovery fails, follow [Troubleshooting](/en/help/troubleshooting) first.
   </Step>
 </Steps>
 
 <Note>
-  `language` and `llmLanguage` belong to the plugin translation workflow. They are separate from the Mintlify docs site language switcher.
+  `language` and `llmLanguage` identify the plugin translation locale, such as `zh-cn`, `ja`, or `fr`. They are separate from the Mintlify docs site language switcher.
 </Note>
+
+<Tip>
+  Continue with [Translate a plugin](/en/guides/translate-a-plugin) for the full workflow, theme translation, sharing, and automation links.
+</Tip>

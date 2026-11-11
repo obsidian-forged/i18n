@@ -1,65 +1,80 @@
 ---
 title: "Visual AST editor for safe plugin translation"
 sidebarTitle: "AST Editor"
-description: "Edit plugin translations in a structured table without touching source code. Supports inline editing, search, and untranslated filtering."
+description: "Edit plugin translations in a structured table with inline editing, search, untranslated filtering, and incremental extraction."
 ---
 
-The AST editor displays AST rows extracted from a plugin's `main.js`. You edit translation data managed by Obsidian i18n, not the target plugin's source file directly.
+The AST editor displays extracted strings as table rows. You edit translation data managed by Obsidian i18n rather than searching and editing the target plugin's `main.js` directly.
 
 ## How AST extraction works
 
-AST stands for Abstract Syntax Tree. The current implementation parses the target plugin's compiled `main.js` and applies `astAssignments`, `astFunctions`, `astKeys`, `astRejectRe`, and `astValidRe` to decide which strings become AST rows.
+AST stands for Abstract Syntax Tree. Obsidian i18n parses the target plugin's compiled `main.js` and extracts text according to assignment, function, property-name, and content-filter rules. It also recognizes static localization dictionaries with evidence of UI use and an explicit English entry in a language catalog.
 
 <Note>
-  AST extraction requires a real `main.js` file in the target plugin directory. If that file is missing, AST extraction will not produce rows.
+  Extraction requires `main.js` in the target plugin directory. Extracted rows and translations are stored separately; extraction does not rewrite the target plugin's source.
 </Note>
 
 ## Extract strings
 
 <Steps>
   <Step title="Open the Manager">
-    Click the globe icon to open the Obsidian i18n Manager.
+    Click the globe icon to open `i18n 管理中心`.
   </Step>
-  <Step title="Open the Plugins tab">
-    Switch to **插件** and choose the installed plugin you want to translate.
+  <Step title="Find the target plugin">
+    Open the `插件` tab and find the installed plugin by name or ID.
   </Step>
-  <Step title="Run Extract">
-    Click **Extract**. The engine parses the plugin's `main.js` and writes AST rows into the editor.
+  <Step title="Extract and open the editor">
+    Use `提取译文` in the target plugin's more-actions menu to generate a local translation source, then open it with `前往编辑器`.
   </Step>
 </Steps>
 
-After extraction, each table row represents one AST item. The UI shows node type, variable name, source text, and target text.
+The table shows node type, variable name, source text, and target text.
 
 ## Edit translations
 
-Click any **Target** cell to edit it. The editor still exposes an explicit save button at the top; if **综合设置 → 自动保存** is enabled, `AutoSaveManager` also saves the current file automatically.
+Click a target cell to edit it. Leaving the cell updates the editor state. With `综合设置 → 自动保存` enabled, saving is triggered after that state stays unchanged for 500ms; otherwise click `保存`.
 
-You can:
-
-- move across cells with the keyboard
-- click directly into rows to edit
-- filter the table down to untranslated rows only
+- edit multiple rows in sequence
+- use the search field to filter rows
+- show only untranslated rows
 
 <Tip>
-  The **Untranslated** filter only keeps rows whose `target` is empty or still equal to `source`.
+  The `未翻译` filter includes targets that are empty, whitespace-only, or still equal to their source.
 </Tip>
 
 ## Search and filter
 
-The editor search bar matches across:
+The search field matches:
 
 | Dimension | What it matches |
 |-----------|-----------------|
-| node type | `StringLiteral`, `TemplateLiteral`, and similar AST categories |
-| variable name | identifiers attached to the row |
+| node type | for example `VariableDeclarator`, `CallExpression`, or `LocalizationProperty` |
+| variable name | for example `settingTitle` or `buttonLabel` |
 | source text | original text |
-| target text | translated text |
+| target text | the current translation |
 
 <AccordionGroup>
   <Accordion title="What is a node type?">
-    It is the AST category assigned to the string by the parser, such as a plain string literal, a template literal, or JSX text.
+    The table type describes the extraction context: variable declaration `VariableDeclarator`, assignment `AssignmentExpression`, object property `ObjectProperty`, function call `CallExpression`, constructor call `NewExpression`, or localization property `LocalizationProperty`.
   </Accordion>
   <Accordion title="What is a variable name?">
-    The variable name comes from the AST row itself and gives extra context about how the source string is used.
+    It provides context for short strings used in different places. Dictionary rows retain the corresponding property name.
   </Accordion>
 </AccordionGroup>
+
+## Localization dictionary rows
+
+Starting in 2.0.27, a static dictionary confirmed to supply UI text and registered as the English entry of a language catalog can produce `LocalizationProperty` rows. This is a restricted recognition rule, not extraction of every string in every object.
+
+These translations strictly match values in recognized dictionary properties and do not participate in ordinary source-wide loose replacement. This preserves dictionary lookup keys and internal dropdown values. Keep the row's type, property name, and source text, and edit only its target.
+
+## Extract additional strings
+
+When an existing translation file is missing new strings, use `增量提取` in its editor:
+
+1. If the translation is applied, return to the Manager and use `还原` first. Incremental extraction is unavailable while it is applied.
+2. Open the existing translation's AST editor and select the file to update.
+3. Run `增量提取` to merge new rows into the current rows. Existing rows with the same type, property name, and source text keep their targets.
+4. Filter with `未翻译`, translate the new rows, save, and apply again.
+
+To use newer dictionary recognition after upgrading, extract the missing rows into the existing translation file. A newly extracted but untranslated `LocalizationProperty` does not override a valid translation stored under an older row type.
