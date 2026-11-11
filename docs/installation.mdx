@@ -35,7 +35,7 @@ description: "使用 BRAT 从 GitHub 安装，或手动解压发行版 ZIP 到�
         点击 **Add Beta plugin**，粘贴仓库地址：
 
         ```text
-        https://github.com/eondrcode/obsidian-i18n
+        https://github.com/obsidian-forged/i18n
         ```
       </Step>
       <Step title="手动启用插件">
@@ -46,10 +46,10 @@ description: "使用 BRAT 从 GitHub 安装，或手动解压发行版 ZIP 到�
   <Tab title="手动安装">
     <Steps>
       <Step title="下载发行版 ZIP">
-        打开 [Releases 页面](https://github.com/eondrcode/obsidian-i18n/releases)，下载 `obsidian-i18n.zip`。
+        打开 [Releases 页面](https://github.com/obsidian-forged/i18n/releases)，下载 `obsidian-i18n.zip`。
       </Step>
       <Step title="解压到插件目录">
-        找到当前 vault 的 `.obsidian/plugins/` 目录，把 ZIP 解压到这里。最终目录结构必须是：
+        找到当前 vault 使用的配置目录 `<configDir>`，把 ZIP 解压到它的 `plugins/` 下，形成 `<configDir>/plugins/i18n/`。默认配置目录为 `.obsidian`，默认目录下的结构是：
 
         ```text
         .obsidian/
@@ -60,7 +60,7 @@ description: "使用 BRAT 从 GitHub 安装，或手动解压发行版 ZIP 到�
                 └── styles.css
         ```
 
-        文件夹名必须是 `i18n`，因为它对应插件真实的 `manifest.id`。
+        文件夹名必须是 `i18n`，因为它对应插件真实的 `manifest.id`。如果配置目录为 `.obsidian-ios` 等自定义名称，应使用 `.obsidian-ios/plugins/i18n/`，不要另外创建 `.obsidian` 来安装。
       </Step>
       <Step title="重启 Obsidian">
         关闭并重新打开 Obsidian，让它重新扫描插件目录。

@@ -35,7 +35,7 @@ This documentation covers two installation paths:
         Click **Add Beta plugin** and paste:
 
         ```text
-        https://github.com/eondrcode/obsidian-i18n
+        https://github.com/obsidian-forged/i18n
         ```
       </Step>
       <Step title="Enable the plugin manually">
@@ -46,10 +46,10 @@ This documentation covers two installation paths:
   <Tab title="Manual install">
     <Steps>
       <Step title="Download the release ZIP">
-        Open the [Releases page](https://github.com/eondrcode/obsidian-i18n/releases) and download `obsidian-i18n.zip`.
+        Open the [Releases page](https://github.com/obsidian-forged/i18n/releases) and download `obsidian-i18n.zip`.
       </Step>
       <Step title="Extract it into the plugin directory">
-        Locate the current vault's `.obsidian/plugins/` directory. The final structure must be:
+        Locate the configuration directory `<configDir>` used by the current vault, then extract the ZIP into its `plugins/` directory to create `<configDir>/plugins/i18n/`. The default configuration directory is `.obsidian`, with this structure:
 
         ```text
         .obsidian/
@@ -60,7 +60,7 @@ This documentation covers two installation paths:
                 └── styles.css
         ```
 
-        The folder name must be `i18n` because it matches the real plugin `manifest.id`.
+        The folder name must be `i18n` because it matches the real plugin `manifest.id`. For a custom configuration directory such as `.obsidian-ios`, use `.obsidian-ios/plugins/i18n/`; do not create a separate `.obsidian` directory for installation.
       </Step>
       <Step title="Restart Obsidian">
         Close and reopen Obsidian so it rescans the plugin directory.

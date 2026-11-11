@@ -32,7 +32,7 @@ If the problem is GitHub raw-resource access, switch **综合设置 → 加速�
 
 ### Plugin extraction returns no rows
 
-Plugin extraction requires a real `main.js` file in the target plugin directory. If `main.js` is missing, AST extraction cannot produce rows.
+Plugin extraction requires a real `main.js` file in the target plugin directory. If it is missing, check the target plugin's installation, restore the missing file, and extract again. Check Regex extraction results when the source exists but AST parsing fails.
 
 ### Theme extraction returns no rows
 
@@ -42,11 +42,25 @@ The current theme extractor only reads `theme.css` `/* @settings */` blocks and 
 
 ### Placeholders such as `${name}` disappeared
 
-Search for the affected row and restore the missing placeholders before applying again.
+Search for the original row in the editor and restore the exact interpolation expressions and their order. Check brackets and escape sequences. AST translations that still contain interpolation keep the original text when their expressions do not match. Removing all interpolation can produce static text and lose dynamic values without a syntax or reload error.
+
+### “未检测到翻译内容” or zero translation rows
+
+Starting with 2.0.26, plugin apply requires at least one AST or Regex entry with non-empty, different source and target text. Empty dictionaries, empty rules, empty targets, or targets that all equal their sources stop the operation before backup creation, file writes, state changes, or reload.
+
+Check that the correct translation source is active, then complete at least one effective translation in the editor before applying. Extracted rows whose targets still equal their sources do not meet this requirement.
+
+### Backup or restoration fails
+
+A backup creation or read failure stops the current apply before further target-file writes. Restoration requires a complete, readable backup whose recorded source version matches the current target plugin version. Unknown or different versions block restoration.
+
+Check the reported error and the target plugin's installation and version. If the current backup is unavailable, obtain the original files for the current version from the target plugin's release channel. Confirm that the plugin can load before continuing with translation work.
 
 ### Apply reports a plugin reload failure
 
-The current apply flow auto-rolls back on reload failure. Return to the editor, inspect the recently edited rows, and then re-apply.
+If the target plugin fails its test load or reload, the current implementation attempts a rollback and checks whether the original plugin can load again. Check the rollback and reload results before returning to the editor to inspect the recently edited rows.
+
+If rollback or the subsequent reload fails, stop repeated apply attempts. Restore the target plugin's original files for its current version and confirm that it can load first.
 
 ## Installation and import
 
@@ -56,14 +70,21 @@ BRAT downloads files but does not auto-enable the plugin. Find **I18N** in the i
 
 ### Manual install does not load
 
-Verify this exact path exists:
+Check the files in the current configuration directory. `<configDir>` defaults to `.obsidian`; replace it with the directory currently used by this vault when you use a custom configuration directory.
 
 ```text
-.obsidian/plugins/i18n/main.js
+<configDir>/plugins/i18n/
+├── main.js
+├── manifest.json
+└── styles.css
 ```
 
-`manifest.json` and `styles.css` also need to exist, and the folder name must be `i18n`.
+The plugin folder should be named `i18n`.
 
 ### Local import fails
 
 The Manager **管理** import action is primarily intended for Manager-exported `.i18n.gz` files. If you select a `.json`, verify that it came from an older Manager export format.
+
+<Note>
+  If these steps do not resolve the problem, open an issue in [GitHub Issues](https://github.com/obsidian-forged/i18n/issues) and include redacted developer-console errors.
+</Note>

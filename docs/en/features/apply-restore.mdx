@@ -1,43 +1,57 @@
 ---
 title: "Apply and restore translations non-destructively"
 sidebarTitle: "Apply & Restore"
-description: "Write active translations into plugin files, keep backups, and roll back immediately when something goes wrong."
+description: "Write effective translations into plugin files and restore verified backups of the same version."
 ---
 
-Obsidian i18n keeps translations separate from the plugins and themes they target. When you click **Apply**, the plugin creates backups first and then writes the active translation into the target files. When you click **Restore**, it writes those backups back.
+Obsidian i18n keeps translation data separate from the target plugin directory. Clicking **应用 / Apply** checks the translation and prepares a backup before writing the target plugin files. Clicking **还原 / Restore** recovers files from a backup that matches the current plugin version.
 
 ## Apply a translation
 
 <Steps>
   <Step title="Open the Manager">
-    Click the globe icon to open the Obsidian i18n Manager.
+    Click the globe icon to open `i18n 管理中心`.
   </Step>
   <Step title="Choose the target plugin">
     In **插件**, find the installed plugin whose active translation you want to apply.
   </Step>
-  <Step title="Click Apply">
-    Click **Apply**. For plugins, the current implementation writes the translated content and then performs a disable / enable reload cycle.
+  <Step title="Apply the translation">
+    Click **应用 / Apply**. After the checks pass, the plugin writes the active translation and test-loads the target plugin. A plugin that was disabled remains disabled after the test load.
   </Step>
 </Steps>
 
-After a successful apply, state tracking stores the target plugin version and translation version as applied.
+## Checks before applying
+
+Starting with 2.0.26, a plugin translation needs at least one AST or Regex entry with non-empty, different source and target text. An empty dictionary, empty rules, or entirely untranslated entries stop the operation before backup creation, target-file writes, application-state changes, or plugin reload. Manual apply shows **未检测到翻译内容**; complete the translation in the editor first.
+
+If backup creation or reading fails, the current apply stops before writing target files. Use the error to check the target installation and backup availability. See [Troubleshooting](/en/help/troubleshooting) for the recovery steps.
 
 ## Restore the original state
 
-Click **Restore** to recover the original files from `.obsidian/plugins/i18n/backups/`.
+Click **还原 / Restore**. Restoration requires a complete, readable backup whose recorded source version matches the current plugin version. An unknown or different source version blocks restoration to prevent older files from overwriting a newer plugin.
+
+If restoration fails, check the target plugin version and the reported error. When the current backup is unavailable, obtain the original files for the current version from the target plugin's release channel before continuing with translation work.
 
 <Warning>
-  If plugin reload fails after Apply, the current implementation immediately restores the backup and tries to re-enable the original plugin. Start troubleshooting from the edited translation rows before attempting another apply.
+  Keep the original expressions and order inside `${variable}`, along with escape sequences such as `\n`. In AST mode, an entry keeps its original text when the translation still contains interpolation but changes its expressions. Removing all interpolation can produce static text and lose dynamic values without a syntax or reload error. Check the translation before applying; a successful reload does not prove that placeholders are intact.
 </Warning>
+
+## Recovery after an apply failure
+
+If the target plugin fails its test load or reload, the plugin attempts to roll back from the backup and checks whether the original plugin can load again. Check the rollback and reload results before returning to the editor to revise the translation.
+
+If rollback or the subsequent reload fails, stop repeated apply attempts. Restore the target plugin's original files for its current version and confirm that it can load first.
 
 ## Automatic re-apply after target updates
 
-When **Smart Update** (`automaticUpdate`) is enabled, startup checks compare applied target versions and re-run apply for active translations whose target version changed.
+`automaticUpdate` is in **Settings → Community Plugins → I18N → 综合设置** and defaults to `false`.
 
-## Where translation data lives
+When enabled, startup checks compare the applied-translation record with the target plugin version and attempt to re-apply the active translation when that version has changed.
 
-Obsidian i18n stores its own data outside the target plugin folder:
+Repeated apply operations for the same version reuse the original saved source. Applying across versions rebuilds the backup from the current plugin files. An unknown old backup version stops the apply operation, and a backup failure also prevents further writes.
 
-- `.obsidian/plugins/i18n/translations/`
-- `.obsidian/plugins/i18n/metadata.json`
-- `.obsidian/plugins/i18n/backups/`
+## Why translations are separate from plugins
+
+- Obsidian i18n manages local translations separately.
+- Reinstalling the target plugin does not directly delete its local translation sources.
+- Disabling Obsidian i18n does not automatically remove translations already written into the target plugin.

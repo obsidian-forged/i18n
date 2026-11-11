@@ -16,7 +16,7 @@ Automation is not configured in `综合设置`. The current entry point is the M
 |------|---------|---------|
 | `autoDiscovery` | `false` | background discovery enabled or disabled |
 | `autoMatchStrategy` | `comprehensive` | scoring strategy |
-| `autoApply` | `false` | apply immediately after a match or stop at review |
+| `autoApply` | `false` | apply matches during a manually started `探测扫描` run |
 | `autoCheckInterval` | `24` | interval in hours; `0` disables scheduled checks |
 | `autoTrustedRepos` | `[]` | trusted repositories |
 | `autoExcludeList` | `[]` | excluded plugin IDs |
@@ -32,10 +32,10 @@ Automation is not configured in `综合设置`. The current entry point is the M
     Switch to the **自动化** tab.
   </Step>
   <Step title="Enable background discovery">
-    Turn on the background discovery toggle. This enables `autoDiscovery`.
+    Turn on **后台探测与通知**. This enables `autoDiscovery`.
   </Step>
   <Step title="Set the interval">
-    Enter the check interval in hours. `0` disables scheduled checks.
+    Enter the interval in hours under **探测周期**. `0` disables scheduled checks.
   </Step>
   <Step title="Choose scan scope">
     `autoScanMode` supports `incremental` and `full`.
@@ -56,7 +56,7 @@ For plugins, raw version compatibility is:
 - same major version: 50
 - anything else: 0
 
-For themes, version compatibility is fixed at 50.
+For plugins, raw values of `100 / 50 / 0` become `50 / 25 / 0` version points. Themes use a fixed raw value of `50`, which contributes `25` version points.
 
 <AccordionGroup>
   <Accordion title="comprehensive (default)">
@@ -75,8 +75,22 @@ For themes, version compatibility is fixed at 50.
 
 ## Auto-apply
 
-By default the discovery flow keeps matches in a reviewable task list. When `autoApply` is enabled, successful matches continue into the download and apply path instead of stopping at review.
+Background discovery triggered on startup or by scheduled checks skips results that are already up to date and keeps matches requiring action in the reviewable task list. Turning on **自动应用翻译** (`autoApply`) does not make background discovery download and apply these translations.
+
+When you manually click **探测扫描**, `autoApply=false` keeps matches for review. For matches that are not already up to date, `autoApply=true` proceeds to apply the translation, downloading it first when the local cache does not match. Click **一键审阅** to apply previously discovered tasks as a batch.
 
 <Warning>
-  Automation only reads registries from repositories listed in `autoTrustedRepos`, and repository values must use `owner/repo` format.
+  `autoApply` is disabled by default. Automation only reads registries from repositories listed in `autoTrustedRepos`, and repository values must use `owner/repo` format.
 </Warning>
+
+## Trusted repositories and exclusions
+
+<AccordionGroup>
+  <Accordion title="autoTrustedRepos: trusted repositories">
+    Automation only scans translation registries in these repositories. An empty list leaves no repositories available for automatic application.
+  </Accordion>
+
+  <Accordion title="autoExcludeList: excluded plugin IDs">
+    Listed plugin IDs are skipped during automatic discovery, matching, and application.
+  </Accordion>
+</AccordionGroup>
