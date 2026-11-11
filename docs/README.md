@@ -2,6 +2,8 @@
 
 这个目录是 `obsidian-i18n` 的 Mintlify 文档站根目录。
 
+在线入口：[简体中文](https://eondr.mintlify.app/introduction) · [English](https://eondr.mintlify.app/en/introduction)
+
 ## 文档目标
 
 - 面向插件使用者，说明安装、提取、翻译、应用、还原、Cloud 下载和 GitHub 发布流程
@@ -20,13 +22,16 @@
 
 ## 开发命令
 
-以下命令都从 `G:\goProjects\obsidian-i18n\docs` 目录执行：
+从仓库根目录进入 `docs/` 后执行：
 
 ```bash
+cd docs
 npx mint dev
 npx mint validate
 npx mint broken-links
 ```
+
+`docs.json` 将 `/`、`/index` 跳转至 `/introduction`，将 `/en`、`/en/index` 跳转至 `/en/introduction`；中英文共用对应的导航页面。
 
 ## 维护硬规则
 

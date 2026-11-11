@@ -10,9 +10,15 @@
   "navbar": {
     "primary": {
       "type": "github",
-      "href": "https://github.com/eondrcode/obsidian-i18n"
+      "href": "https://github.com/obsidian-forged/i18n"
     }
   },
+  "redirects": [
+    { "source": "/", "destination": "/introduction" },
+    { "source": "/index", "destination": "/introduction" },
+    { "source": "/en", "destination": "/en/introduction" },
+    { "source": "/en/index", "destination": "/en/introduction" }
+  ],
   "navigation": {
     "languages": [
       {

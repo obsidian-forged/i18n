@@ -4,9 +4,10 @@
 
 ## 本地预览
 
-从 `G:\goProjects\obsidian-i18n\docs` 目录运行：
+从仓库根目录进入 `docs/` 后运行：
 
 ```bash
+cd docs
 npx mint dev
 ```
 

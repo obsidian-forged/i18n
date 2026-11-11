@@ -60,7 +60,7 @@ Regex extraction runs directly on source text.
 
 <AccordionGroup>
   <Accordion title="githubProxyUrl: GitHub proxy">
-    **Default:** `https://ghp.ci/`
+    **Default:** empty string, shown as `直连` (direct access)
 
     The current UI renders this as a fixed dropdown in `综合设置`.
   </Accordion>
@@ -80,9 +80,16 @@ Regex extraction runs directly on source text.
   <Accordion title="modeImt: enable immersive translation">
     **Default:** `false`
 
-    When enabled, the plugin applies real-time translation to matched UI elements.
+    When enabled, the plugin initializes a separate translation SDK in the main window, workspace popouts, and detached settings windows. It translates UI elements according to the matching rules. SDK loading failures produce an error notice; disable and enable immersive translation to retry.
+  </Accordion>
+  <Accordion title="imtBallPosition: floating button position">
+    **Default:** `null`, using the default position
+
+    The plugin saves a relative position between `0` and `1` when dragging ends. It restores this position when translation is enabled again or a window opens, and adjusts it to the available height when the window is resized.
   </Accordion>
   <Accordion title="imtPagerule: selector rules">
     This field defines the include and exclude selectors for immersive translation.
   </Accordion>
 </AccordionGroup>
+
+Disable and enable immersive translation after changing selectors. If a page has no translation, check the include and exclude rules, then trigger translation from the floating button panel in that window.

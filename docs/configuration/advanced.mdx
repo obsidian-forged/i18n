@@ -60,7 +60,7 @@ Regex 提取器直接在源文本上做匹配。
 
 <AccordionGroup>
   <Accordion title="githubProxyUrl：GitHub 代理">
-    **默认值：** `https://ghp.ci/`
+    **默认值：** 空字符串，即 **直连**
 
     当前 UI 位于 `综合设置`，并以预置下拉选项形式渲染。
   </Accordion>
@@ -80,9 +80,16 @@ Regex 提取器直接在源文本上做匹配。
   <Accordion title="modeImt：启用沉浸翻译">
     **默认值：** `false`
 
-    开启后，插件会对命中的 UI 元素执行实时翻译。
+    开启后，插件会为主窗口、工作区弹出窗口和独立设置窗口分别初始化翻译 SDK，按匹配规则翻译 UI 元素。SDK 加载失败会提示错误，可重新启用后重试。
+  </Accordion>
+  <Accordion title="imtBallPosition：悬浮球位置">
+    **默认值：** `null`，使用默认位置
+
+    拖动结束后保存 `0` 到 `1` 的相对位置，重新启用或打开窗口时恢复；窗口大小变化后按可移动高度调整，保持悬浮球可见。
   </Accordion>
   <Accordion title="imtPagerule：选择器规则">
     这个字段定义沉浸翻译的命中与排除选择器。
   </Accordion>
 </AccordionGroup>
+
+修改选择器规则后重新启用沉浸翻译。若特定页面没有译文，先检查匹配与排除规则，再通过该窗口的悬浮球面板手动触发翻译。

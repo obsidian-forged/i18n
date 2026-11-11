@@ -53,15 +53,15 @@ This page only documents the controls that currently exist in **Settings → Com
     This uses `owner/repo` format. The Manager plugin and theme lists read `metadata.json` from this repository to show available cloud versions.
   </Accordion>
   <Accordion title="githubProxyUrl: GitHub raw-resource proxy">
-    **Default:** `https://ghp.ci/`
+    **Default:** empty string, shown as `直连` (direct access)
 
-    In the current UI this is a fixed dropdown, not a free-text field. The code only wraps `raw.githubusercontent.com` resource URLs with this proxy.
+    In the current UI this is a fixed dropdown, not a free-text field. The code only wraps `raw.githubusercontent.com` resource URLs with this proxy; it does not proxy GitHub Token API requests. If a saved value is absent from the options, the selector displays `直连` until you select an option again.
   </Accordion>
 </AccordionGroup>
 
 Current dropdown options are:
 
-- direct access
+- `直连` (direct access)
 - `https://ghproxy.net/`
 - `https://gh-proxy.com/`
 - `https://cdn.jsdelivr.net/gh/`
@@ -71,4 +71,4 @@ Current dropdown options are:
 
 ## Reset
 
-The bottom of the `综合设置` tab contains the reset action that restores settings to `DEFAULT_SETTINGS` and re-renders the settings view.
+Click `重置配置` at the bottom of `综合设置` to restore settings to `DEFAULT_SETTINGS` and re-render the page. This clears saved API keys, extraction rules, and other custom configuration.

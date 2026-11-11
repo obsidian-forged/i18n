@@ -1,12 +1,14 @@
 <div align="center">
   <h1>🌍 Obsidian i18n</h1>
-  <p><b>基于 AST 解析与大模型 (LLM) 驱动的全自动本地化插件翻译工具</b></p>
+  <p><b>基于 AST 解析与大模型 (LLM) 的可视化插件翻译工具</b></p>
   <p>
-    <a href="https://github.com/eondrcode/obsidian-i18n/releases"><img src="https://img.shields.io/github/v/release/eondrcode/obsidian-i18n?style=flat-square&color=blue" alt="Release"></a>
-    <a href="https://github.com/eondrcode/obsidian-i18n/blob/master/LICENSE"><img src="https://img.shields.io/github/license/eondrcode/obsidian-i18n?style=flat-square" alt="License"></a>
+    <a href="https://github.com/obsidian-forged/i18n/releases"><img src="https://img.shields.io/github/v/release/obsidian-forged/i18n?style=flat-square&color=blue" alt="Release"></a>
+    <a href="https://github.com/obsidian-forged/i18n/blob/main/LICENSE"><img src="https://img.shields.io/github/license/obsidian-forged/i18n?style=flat-square" alt="License"></a>
     <a href="https://afdian.com/a/eondr"><img src="https://img.shields.io/badge/%E7%88%B1%E5%8F%91%E7%94%B5-%E8%B5%9E%E5%8A%A9%E4%BD%9C%E8%80%85-946ce6?style=flat-square" alt="Afdian"></a>
   </p>
 </div>
+
+📖 **[在线文档](https://eondr.mintlify.app/introduction)** · **[English documentation](https://eondr.mintlify.app/en/introduction)**
 
 ---
 
@@ -16,9 +18,9 @@
 
 ## 🎯 核心特性一览 (Highlights)
 
-- 🌳 **绝对安全的所见即所得**：基于底层抽象语法树（AST）解析，无需触碰危险的源代码，像填写 Excel 行内表格一样直观地查漏补缺。
-- 🤖 **并发 AI 极速引擎**：自由配置请求并发数与批处理量，内置本地翻译缓存库，翻译得越多，API 消耗费用越趋近于零。
-- 💰 **首创账单防刺客系统**：执行翻译动作前，面板将精准预估所需消耗的 Tokens 和对应的人民币/美元开销，所有成本完全透明。
+- 🌳 **可视化译文编辑**：基于抽象语法树（AST）提取支持的文案，在表格中编辑独立的译文数据。
+- 🤖 **并发 AI 翻译**：配置请求并发数与批次大小，默认跳过当前已有有效译文的条目，覆盖模式会重新发送已有译文；当前没有按原文复用译文的本地缓存。
+- 💰 **输入费用预估**：发送前显示预计输入 Token 数及人民币费用，按启用的自定义输入单价或内置价格估算，不包含输出费用。
 - 📦 **翻译数据解耦与防丢失**：您的译文库独立于目标插件保存。即使目标插件大版本更新或重装，您的中文翻译配置依然稳如泰山。
 
 ---
@@ -34,17 +36,17 @@
 使用 [Obsidian42 - BRAT](https://github.com/TfTHacker/obsidian42-brat) 可以方便地自动拉取本插件的后续更新，无需每次手动去下载压缩包。
 
 1. 打开 BRAT 的设置页面，点击 **Add Beta plugin**。
-2. 粘贴本仓库地址：`https://github.com/eondrcode/obsidian-i18n`
-3. 安装完成后，在 Obsidian 的“第三方插件”列表中找到 **Obsidian i18n** 并将其启用。
+2. 粘贴本仓库地址：`https://github.com/obsidian-forged/i18n`
+3. 安装完成后，在 Obsidian 已安装社区插件列表中找到 **I18N** 并将其启用。
 
 #### 方法二：纯手动安装
 
 如果网络环境受限导致 BRAT 安装报错，您可以尝试手动载入：
 
-1. 访问本插件的 [Releases 发行页](https://github.com/eondrcode/obsidian-i18n/releases)。
+1. 访问本插件的 [Releases 发行页](https://github.com/obsidian-forged/i18n/releases)。
 2. 下载最新版本的 `obsidian-i18n.zip` 压缩包。
-3. 在您的笔记库中将其解压至 `.obsidian/plugins/` 目录之下。
-   *(确认目录结构为 `.obsidian/plugins/obsidian-i18n/main.js`)*
+3. 将其解压到当前配置目录下的 `plugins/`，最终路径为 `<configDir>/plugins/i18n/main.js`。
+   默认配置目录为 `.obsidian`，即 `.obsidian/plugins/i18n/main.js`；使用自定义配置目录时替换 `<configDir>`。同一 `i18n` 文件夹内还应有 `manifest.json` 和 `styles.css`。
 4. 重启 Obsidian 并在设置中启用。
 
 ---
@@ -58,7 +60,7 @@
 进入插件设置页，切换至 **”语言模型“** 选项卡。您可以建立多套配置方案（Profile）在不同的模型厂商之间切换。
 
 * **API 接口地址**：填写模型服务商的请求路径（如官方的 `https://api.openai.com/v1` 或国内兼容代理地址）。
-* **API 密钥 (Key)**：粘贴您的密钥。插件会将其安全地加密存储在本地。
+* **API 密钥 (Key)**：填写服务商密钥，随当前方案保存在插件设置数据中。
 * **模型型号**：选择下拉菜单或手动输入模型标识符（如 `gpt-4o` 或 `deepseek-chat`）。
 * **测试与诊断**：填写完毕后，务必点击底部的 **“立即测试”**。插件内置的深度诊断机制会帮您排查连通性，直到展现_“连接成功”_字样。
 
@@ -68,7 +70,7 @@
 
 * **目标语言**：设定为您最终想要输出的语种（例如填写：`zh-cn`）。
 * **作者署名**：留下您的昵称，将以此作为您后续打包译文的作者印记。
-* **智能更新（强烈推荐）**：开启后，当 Obsidian 检测到目标插件发布新版更迭时，i18n 插件会自动为您重新映射并**自动应用本地原有的译文缓存**，免去您重新翻译的无用功。
+* **智能更新**：默认关闭。开启后，插件启动时检查已应用译文的目标版本，对当前版本重新备份并应用活动译文；原有译文仍需与新版目标代码匹配。
 
 ---
 
@@ -80,8 +82,8 @@
 
 本工具摒弃了让用户修改 `main.js` 或多重嵌套 JSON 的危险行为，为您打造了最友好的数据修改体验：
 
-* **智能深层提取 (Extract)**：在“资源管理”主面板找到待汉化插件，点击。引擎会瞬间将深埋在逻辑流和前端框架里的展示文本剥离出来。
-* **行内光速直写 (Inline Editing)**：跳出繁琐的保存弹窗。点进右侧的“译文”单元格，打入中文，光标移开即刻自动保存录入，如同使用最现代的在线表格工具。
+* **提取译文**：在 `i18n 管理中心` 的 `插件` 列表中打开目标插件的更多菜单，执行 `提取译文`，再通过 `前往编辑器` 修改结果。
+* **行内编辑 (Inline Editing)**：在“译文”单元格中修改，离开单元格后提交到编辑器状态。启用自动保存时，状态停止变化 500ms 后触发保存；关闭时点击“保存”。
 * **多维检索引擎**：遇到包含上千行配置词条的庞然大物，利用上方顶部的全息搜索框，输入生词，即可穿透 `节点类型 / 变量名称 / 原文 / 译文` 瞬间锁定，同时使用下拉框可一键筛出“未翻译 (Untranslated)”项目进行突击攻坚。
 
 ### 🤖 2. 高并发机器翻译驱动 (AI Translation)
@@ -89,12 +91,12 @@
 让大模型接管那千篇一律的体力劳动！
 
 * **高并发批量翻译 (Batch)**：前往编辑器的“Ai 语言模型面板”，针对海量的剩余英文字符，输入您偏好的处理“并发数”与“批次条目数”，点击翻译后，优雅地看着实时进度条拉满即可。
-* **账单防刺客估价 (Token Estimation)**：全网首创打消恐惧。在点击前，系统会通过底层试探立刻在面板告之：**本次翻译将预计耗费您多少 Token 数，折算合共多少金额（例如 `≈ ¥0.15`）！**
-* **本地化记忆缓存体系 (Memory Cache)**：诸如 `Settings`, `Cancel` 这类 UI 词汇全靠重复利用。只要底层识别到该词曾经被您翻译过，它会主动在本地强硬阻断向上游 API 发出的扣款请求，实现零延迟、零费用的“秒翻”投喂。
+* **Token 与费用预估**：面板在发送前估算输入侧 Token 与人民币费用，实际账单取决于服务商计费和模型输出。
+* **跳过已翻译条目**：编辑器默认跳过当前已有有效译文的行；重新提交相同原文仍会调用 API，这与本地译文缓存不同。
 
 ### 💾 3. 译文工作区统御与生态 (Workspace)
 
-* **非破坏性注入 (Apply / Restore)**：一键点击“应用”，译文数据将映射到底层文件。不用担心弄坏源文件，若遇报错崩溃插件失灵，立刻点击 **“还原 (Restore)”** 即可无损回滚至原始母语状态。
+* **插件应用与还原**：插件应用前创建备份；备份失败或没有有效插件译文时中止写入。插件还原会校验备份版本，来源未知或与当前插件版本不符时拒绝覆盖；应用或还原失败后先检查提示结果。
 * **资源库生态 (Export / Import)**：除了独善其身，更可兼济天下。点击“批量导出”生成轻小体积的汉化包 JSON 文件分享给群友；抑或是拿到社区大佬打磨的语料库并点击“导入译文”，一瞬融入您自己的专属知识库构建全中文语境。
 
 ---
@@ -107,7 +109,7 @@
 * 提示网络超时：如果是 OpenAI 等受限接口，请自备全局代理或更换为国内转发代理接口。
 
 ### Q2: 提示 "插件重载失败/JavaScript 修订损坏"
-如果在手动录入过程中，不小心误删除了源文中诸如 `${变量}` 或 `\n` 之类属于代码范畴的控制符。应用后即会触发报错。请返回主界面狠狠点击 **“还原 (Restore)”** 按钮，系统会基于快照瞬间帮其秽土转生。
+先检查相关错误和还原结果，再定位译文条目。手动修改时保留原文中的 `${变量}` 和转义结构；删除变量会丢失动态内容，不应直接认定为语法错误。备份版本不符时会拒绝还原，不能用旧备份覆盖新版插件。
 
 ---
 
@@ -118,4 +120,4 @@
 * 💖 **[前往 爱发电 (Afdian) 请作者喝杯咖啡吧](https://afdian.com/a/eondr)** 
 * 您的每一次充电，都是支持我们在深夜继续死磕前沿解析方案的精神氮泵。我们会在插件内部置顶展出**「爱发电金主」**们的 ID 与徽章以作表彰！
 
-如果您发现了任何稀奇古怪的 Bug、未兼容的目标插件或是提出脑洞大开的需求，请带上含有控制台错误截图的红字，前往 [GitHub Issues](https://github.com/eondrcode/obsidian-i18n/issues) 毫无保留地向我们开炮！
+如果您发现了任何稀奇古怪的 Bug、未兼容的目标插件或是提出脑洞大开的需求，请带上含有控制台错误截图的红字，前往 [GitHub Issues](https://github.com/obsidian-forged/i18n/issues) 毫无保留地向我们开炮！
